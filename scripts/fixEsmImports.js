@@ -30,6 +30,30 @@ function fixImportsInFile(filePath) {
     },
   );
 
+  // Handle imports using the alias '@/...'
+  // Map '@/foo/bar' -> relative path from current file to dist/foo/bar.js (or /index.js if directory)
+  content = content.replace(/from\s+["']@\/(.+?)["']/g, (match, aliasPath) => {
+    const targetPathNoExt = path.join(distDir, aliasPath);
+    let targetFull = "";
+    if (fs.existsSync(targetPathNoExt) && fs.statSync(targetPathNoExt).isDirectory()) {
+      targetFull = path.join(targetPathNoExt, "index.js");
+    } else if (fs.existsSync(targetPathNoExt + ".js")) {
+      targetFull = targetPathNoExt + ".js";
+    } else if (fs.existsSync(targetPathNoExt + ".ts")) {
+      // If only .ts exists in dist (unlikely), point to .js sibling
+      targetFull = targetPathNoExt + ".js";
+    } else {
+      // Fallback: assume .js at target
+      targetFull = targetPathNoExt + ".js";
+    }
+
+    let rel = path.relative(path.dirname(filePath), targetFull);
+    // Use POSIX style for imports
+    rel = rel.split(path.sep).join("/");
+    if (!rel.startsWith(".")) rel = "./" + rel;
+    return `from "${rel}"`;
+  });
+
   fs.writeFileSync(filePath, content, "utf-8");
 }
 
