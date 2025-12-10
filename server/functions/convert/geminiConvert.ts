@@ -1,5 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { ScrapeOptions } from "@/types";
+import logger from "../../utils/logger";
 
 const getClient = () => {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -102,7 +103,7 @@ export const geminiConvert = async (
       .replace(/\n?```$/i, "")
       .trim();
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    logger.error("Gemini API Error:", error);
     throw error;
   }
 };

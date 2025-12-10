@@ -1,5 +1,7 @@
 import express, { Request, Response } from "express";
 import { scrapeUrlGenerator } from "../services/scraperService";
+import logger from "../utils/logger";
+import { ScrapeStatus } from "@/types";
 
 const router = express.Router();
 
@@ -19,10 +21,15 @@ router.post("/scrape", async (req: Request, res: Response) => {
       // 3. Write data to the stream formatted as SSE
       res.write(`data: ${JSON.stringify(update)}\n\n`);
     }
-  } catch (error) {
-    console.error("Stream error:", error);
+  } catch (error: any) {
+    logger.error("Stream error:", error);
+    // Emit an explicit status=ERROR event followed by an error event with the message
+    const errMsg = error?.message || "Internal Server Error";
     res.write(
-      `data: ${JSON.stringify({ type: "error", message: "Internal Server Error" })}\n\n`,
+      `data: ${JSON.stringify({ type: "status", status: ScrapeStatus.ERROR })}\n\n`,
+    );
+    res.write(
+      `data: ${JSON.stringify({ type: "error", message: errMsg })}\n\n`,
     );
   } finally {
     // 4. Close connection

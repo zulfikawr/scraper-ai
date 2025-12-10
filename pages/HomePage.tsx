@@ -52,15 +52,6 @@ export const HomePage: React.FC = () => {
           </AnimatePresence>
         </div>
       </main>
-
-      <footer className="py-6 text-center text-zinc-400 text-xs font-mono">
-        <a
-          href="/docs"
-          className="underline hover:text-zinc-600 transition-colors"
-        >
-          API Docs
-        </a>
-      </footer>
     </div>
   );
 };

@@ -7,13 +7,14 @@ import {
   Link as LinkIcon,
   Settings2,
   Loader2,
+  BookOpen,
+  ArrowUpRight,
 } from "lucide-react";
 import { motion, AnimatePresence, Variants } from "motion/react";
 import { ScrapeOptions, ScrapeStatus } from "../types";
 import { useAppContext } from "../context/AppContext";
 import { scrapeUrlStream } from "../services/api";
 
-// --- Animation Variants ---
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -47,11 +48,13 @@ const InputSection: React.FC = () => {
     setHistory,
     setScrapeResult,
     setMarkdown,
+    setLogMessage,
   } = useAppContext();
   const [url, setUrl] = useState("");
   const [options, setOptions] = useState<ScrapeOptions>({
     includeImages: true,
     includeLinks: true,
+    useBrowser: false,
   });
 
   useEffect(() => {
@@ -66,10 +69,9 @@ const InputSection: React.FC = () => {
       }
 
       const pastedData = e.clipboardData?.getData("text");
-      if (pastedData) {
-        if (pastedData.trim().length > 0) {
-          setUrl(pastedData.trim());
-        }
+      if (pastedData && pastedData.trim().length > 0) {
+        e.preventDefault();
+        setUrl(pastedData.trim());
       }
     };
 
@@ -80,39 +82,51 @@ const InputSection: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (url.trim()) {
-      setStatus(ScrapeStatus.SCRAPING); // Initial state
+      setStatus(ScrapeStatus.SCRAPING);
       setLoading(true);
       setError(null);
       setScrapeResult(null);
       setMarkdown("");
 
       try {
-        //  - Visualizing how chunks arrive
         const result = await scrapeUrlStream(url, options, {
           onStatus: (newStatus) => {
-            // This updates the status context in real-time as the server works!
             setStatus(newStatus);
+          },
+          onLog: (level, message, autoEnableBrowser) => {
+            if (autoEnableBrowser) {
+              setOptions((prev) => ({ ...prev, useBrowser: true }));
+            }
+            if (level === "error") {
+              setError(message);
+            }
+            setLogMessage(`[${level.toUpperCase()}] ${message}`);
           },
         });
 
-        // Handle Success
-        setScrapeResult(result);
-        setMarkdown(result.markdown);
-        setStatus(ScrapeStatus.SUCCESS);
+        if (!result.markdown || result.markdown.trim().length === 0) {
+          setStatus(ScrapeStatus.ERROR);
+          setError(
+            "No content extracted. This might be a CSR website — toggle the Browser mode for better results.",
+          );
+        } else {
+          setScrapeResult(result);
+          setMarkdown(result.markdown);
+          setStatus(ScrapeStatus.SUCCESS);
 
-        // Add to history...
-        setHistory((prev) => [
-          {
-            id: new Date().toISOString(),
-            url: result.url,
-            title: result.title,
-            markdown: result.markdown,
-            timestamp: Date.now(),
-          },
-          ...prev,
-        ]);
+          setHistory((prev) => [
+            {
+              id: new Date().toISOString(),
+              url: result.url,
+              title: result.title,
+              markdown: result.markdown,
+              timestamp: Date.now(),
+            },
+            ...prev,
+          ]);
 
-        setUrl("");
+          setUrl("");
+        }
       } catch (err: any) {
         console.error(err);
         setStatus(ScrapeStatus.ERROR);
@@ -139,21 +153,23 @@ const InputSection: React.FC = () => {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Section */}
       <div className="text-center mb-12 relative z-10">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[100px] bg-zinc-200/50 blur-[80px] -z-10 rounded-full"></div>
 
         <motion.div
           variants={itemVariants}
-          className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-zinc-200 shadow-sm mb-6"
+          className="flex justify-center mb-6"
         >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-zinc-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-500"></span>
-          </span>
-          <span className="text-xs font-semibold text-zinc-600 tracking-wide uppercase">
-            Universal Parser
-          </span>
+          <a
+            href="/docs"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-zinc-200 shadow-sm hover:border-zinc-300 hover:shadow-md transition-all group"
+          >
+            <BookOpen className="h-3.5 w-3.5 text-zinc-500 group-hover:text-zinc-800" />
+            <span className="text-xs font-semibold text-zinc-600 tracking-wide uppercase group-hover:text-zinc-900">
+              API Documentation
+            </span>
+            <ArrowUpRight className="h-3.5 w-3.5 text-zinc-400 group-hover:text-zinc-600" />
+          </a>
         </motion.div>
 
         <motion.h1
@@ -171,7 +187,6 @@ const InputSection: React.FC = () => {
         </motion.p>
       </div>
 
-      {/* Main Input Card */}
       <motion.div
         layoutId="input-section"
         variants={itemVariants}
@@ -251,12 +266,21 @@ const InputSection: React.FC = () => {
                 onClick={() => toggleOption("includeImages")}
                 icon={ImageIcon}
                 label="Images"
+                tooltip="Include images"
               />
               <OptionButton
                 isActive={options.includeLinks}
                 onClick={() => toggleOption("includeLinks")}
                 icon={LinkIcon}
                 label="Links"
+                tooltip="Format linked text as markdown links"
+              />
+              <OptionButton
+                isActive={options.useBrowser}
+                onClick={() => toggleOption("useBrowser")}
+                icon={Command}
+                label="Browser"
+                tooltip="Enable client-side rendering mode"
               />
             </div>
           </div>
@@ -276,24 +300,59 @@ const InputSection: React.FC = () => {
   );
 };
 
-// Helper component
-const OptionButton = ({ isActive, onClick, icon: Icon, label }: any) => (
-  <motion.button
-    type="button"
-    onClick={onClick}
-    animate={{
-      backgroundColor: isActive ? "rgb(244 244 245)" : "transparent", // zinc-100 vs transparent
-      color: isActive ? "rgb(24 24 27)" : "rgb(161 161 170)", // zinc-900 vs zinc-400
-      borderColor: isActive ? "rgb(228 228 231)" : "transparent", // zinc-200 vs transparent
-      boxShadow: isActive ? "0 1px 2px 0 rgb(0 0 0 / 0.05)" : "none",
-    }}
-    whileTap={{ scale: 0.95 }}
-    transition={{ duration: 0.2 }}
-    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border"
-  >
-    <Icon className="h-3.5 w-3.5" />
-    {label}
-  </motion.button>
-);
+const OptionButton = ({
+  isActive,
+  onClick,
+  icon: Icon,
+  label,
+  tooltip,
+}: {
+  isActive: boolean;
+  onClick: () => void;
+  icon: any;
+  label: string;
+  tooltip: string;
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div className="relative flex flex-col items-center">
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="absolute bottom-full mb-2.5 px-3 py-1.5 bg-zinc-800 text-zinc-50 text-[10px] font-medium rounded-lg whitespace-nowrap shadow-xl z-50"
+          >
+            {tooltip}
+            {/* Tiny arrow pointing down */}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-800" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <motion.button
+        type="button"
+        onClick={onClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        animate={{
+          backgroundColor: isActive ? "rgb(244 244 245)" : "transparent",
+          color: isActive ? "rgb(24 24 27)" : "rgb(161 161 170)",
+          borderColor: isActive ? "rgb(228 228 231)" : "transparent",
+          boxShadow: isActive ? "0 1px 2px 0 rgb(0 0 0 / 0.05)" : "none",
+        }}
+        whileTap={{ scale: 0.95 }}
+        transition={{ duration: 0.2 }}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border relative"
+      >
+        <Icon className="h-3.5 w-3.5" />
+        {label}
+      </motion.button>
+    </div>
+  );
+};
 
 export default InputSection;

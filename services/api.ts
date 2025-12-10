@@ -2,6 +2,11 @@ import { ScrapeOptions, ScrapeResult, ScrapeStatus } from "@/types";
 
 interface ScrapeStreamCallbacks {
   onStatus: (status: ScrapeStatus) => void;
+  onLog?: (
+    level: "info" | "warn" | "error" | "debug",
+    message: string,
+    autoEnableBrowser?: boolean,
+  ) => void;
 }
 
 export async function scrapeUrlStream(
@@ -25,30 +30,67 @@ export async function scrapeUrlStream(
 
   if (!reader) throw new Error("Browser does not support streaming");
 
+  // Buffer incoming chunks to handle SSE messages split across reads
+  let buffer = "";
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
-    const chunk = decoder.decode(value);
-    // SSE streams might send multiple lines at once, split them
-    const lines = chunk
-      .split("\n\n")
-      .filter((line) => line.trim().startsWith("data: "));
+    buffer += decoder.decode(value, { stream: true });
 
+    // Process complete SSE messages delimited by double newline
+    let boundaryIndex: number;
+    while ((boundaryIndex = buffer.indexOf("\n\n")) !== -1) {
+      const raw = buffer.slice(0, boundaryIndex).trim();
+      buffer = buffer.slice(boundaryIndex + 2);
+
+      if (!raw) continue;
+      // Lines could contain multiple `data:` lines; keep only those starting with data:
+      const lines = raw.split(/\r?\n/).map((l) => l.trim());
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const jsonStr = line.replace("data: ", "");
+        try {
+          const data = JSON.parse(jsonStr);
+
+          if (data.type === "status") {
+            callbacks.onStatus(data.status); // Update UI Status
+          } else if (data.type === "log") {
+            callbacks.onLog?.(data.level, data.message, data.autoEnableBrowser);
+          } else if (data.type === "result") {
+            resultData = data.data;
+          } else if (data.type === "error") {
+            throw new Error(data.message);
+          }
+        } catch (e) {
+          console.error("Error parsing stream chunk", e);
+        }
+      }
+    }
+  }
+
+  // If there's leftover data in buffer, try to parse it one last time
+  if (buffer.trim()) {
+    const lines = buffer.split(/\r?\n/).map((l) => l.trim());
     for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
       const jsonStr = line.replace("data: ", "");
       try {
         const data = JSON.parse(jsonStr);
 
         if (data.type === "status") {
-          callbacks.onStatus(data.status); // Update UI Status
+          callbacks.onStatus(data.status);
+        } else if (data.type === "log") {
+          callbacks.onLog?.(data.level, data.message, data.autoEnableBrowser);
         } else if (data.type === "result") {
           resultData = data.data;
         } else if (data.type === "error") {
           throw new Error(data.message);
         }
       } catch (e) {
-        console.error("Error parsing stream chunk", e);
+        console.error("Error parsing final stream chunk", e);
       }
     }
   }

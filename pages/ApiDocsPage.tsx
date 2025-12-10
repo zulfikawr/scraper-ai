@@ -1,30 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "motion/react";
-import {
-  Code2,
-  Copy,
-  Check,
-  Terminal,
-  ExternalLink,
-  Table,
-} from "lucide-react";
+import { Code2, Terminal, ExternalLink, Table } from "lucide-react";
 import { SpiderWeb } from "@/components/SpiderWeb";
-import Prism from "prismjs";
-import "prismjs/themes/prism.css";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-python";
-import "prismjs/components/prism-json";
+import CodeBlock from "@/components/CodeBlock";
 
 const ApiDocsPage: React.FC = () => {
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCode(id);
-    setTimeout(() => setCopiedCode(null), 2000);
-  };
-
   const examples = [
     {
       id: "curl",
@@ -68,10 +48,6 @@ with requests.post(url, json=json_data, stream=True) as r:
             print(line.decode('utf-8'))`,
     },
   ];
-
-  useEffect(() => {
-    Prism.highlightAll();
-  }, []);
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
@@ -145,16 +121,17 @@ with requests.post(url, json=json_data, stream=True) as r:
                   </div>
 
                   {/* JSON Example */}
-                  <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 overflow-x-auto mb-6">
-                    <pre className="language-json text-sm !m-0 !p-0 !bg-transparent">
-                      <code className="language-json">{`{
+                  <div className="mb-6">
+                    <CodeBlock
+                      code={`{
   "url": "https://example.com/article",
   "options": {
     "includeImages": true,
     "includeLinks": true
   }
-}`}</code>
-                    </pre>
+}`}
+                      language="json"
+                    />
                   </div>
 
                   {/* Table */}
@@ -236,9 +213,9 @@ with requests.post(url, json=json_data, stream=True) as r:
                   </p>
 
                   {/* JSON Example (Success) */}
-                  <div className="bg-zinc-50 rounded-lg p-4 border border-zinc-200 overflow-x-auto mb-6">
-                    <pre className="language-json text-sm !m-0 !p-0 !bg-transparent">
-                      <code className="language-json">{`// Final Event Data
+                  <div className="mb-6">
+                    <CodeBlock
+                      code={`// Final Event Data
 {
   "type": "result",
   "data": {
@@ -247,8 +224,9 @@ with requests.post(url, json=json_data, stream=True) as r:
     "markdown": "# Article Title\\n\\nArticle content...",
     "html": "<html>...</html>"
   }
-}`}</code>
-                    </pre>
+}`}
+                      language="json"
+                    />
                   </div>
 
                   {/* Table */}
@@ -367,55 +345,11 @@ with requests.post(url, json=json_data, stream=True) as r:
             <h2 className="text-2xl font-bold text-zinc-900 mb-6">
               Integration Examples
             </h2>
-            <div className="space-y-6">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 via-zinc-400 to-zinc-200 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
+            <div className="relative bg-white rounded-2xl border border-zinc-200 p-6 sm:p-8 shadow-md space-y-8">
               {examples.map((example) => (
                 <div key={example.id} className="relative group">
-                  <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 to-zinc-300 rounded-xl blur opacity-0 group-hover:opacity-20 transition duration-300"></div>
-                  <div className="relative bg-white rounded-xl overflow-hidden shadow-lg border border-zinc-200">
-                    <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 border-b border-zinc-200">
-                      <div className="flex items-center gap-2">
-                        <div className="flex gap-1.5">
-                          <div className="h-2.5 w-2.5 rounded-full bg-red-400"></div>
-                          <div className="h-2.5 w-2.5 rounded-full bg-yellow-400"></div>
-                          <div className="h-2.5 w-2.5 rounded-full bg-green-400"></div>
-                        </div>
-                        <span className="text-xs font-medium text-zinc-600 ml-2">
-                          {example.title}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() =>
-                          copyToClipboard(example.code, example.id)
-                        }
-                        className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white hover:bg-zinc-100 transition-colors border border-zinc-200"
-                      >
-                        {copiedCode === example.id ? (
-                          <>
-                            <Check className="h-3 w-3 text-green-600" />
-                            <span className="text-xs text-green-600 font-medium">
-                              Copied!
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="h-3 w-3 text-zinc-600" />
-                            <span className="text-xs text-zinc-600 font-medium">
-                              Copy
-                            </span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <div className="p-4 bg-white overflow-x-auto">
-                      <pre
-                        className={`language-${example.language} text-sm leading-relaxed !m-0 !p-0 !bg-transparent`}
-                      >
-                        <code className={`language-${example.language}`}>
-                          {example.code}
-                        </code>
-                      </pre>
-                    </div>
-                  </div>
+                  <CodeBlock code={example.code} language={example.language} />
                 </div>
               ))}
             </div>
@@ -461,12 +395,6 @@ with requests.post(url, json=json_data, stream=True) as r:
           </motion.div>
         </div>
       </main>
-
-      <footer className="py-6 text-center text-zinc-400 text-xs font-mono relative z-10">
-        <a href="/" className="underline hover:text-zinc-600 transition-colors">
-          Back to Home
-        </a>
-      </footer>
     </div>
   );
 };

@@ -19,10 +19,19 @@ export type TabType = "preview" | "markdown" | "raw";
 export interface ScrapeOptions {
   includeImages?: boolean;
   includeLinks?: boolean;
+  // When true, the server will use a headless browser to render the page
+  // before extracting HTML. Useful for client-side rendered sites.
+  useBrowser?: boolean;
 }
 
 export type ScrapeYield =
   | { type: "status"; status: ScrapeStatus }
+  | {
+      type: "log";
+      level: "info" | "warn" | "error" | "debug";
+      message: string;
+      autoEnableBrowser?: boolean;
+    }
   | { type: "result"; data: ScrapeResult }
   | { type: "error"; message: string };
 

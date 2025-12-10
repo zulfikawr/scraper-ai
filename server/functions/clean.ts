@@ -1,4 +1,5 @@
 import { JSDOM } from "jsdom";
+import logger from "../utils/logger";
 
 interface CleanedResult {
   title: string;
@@ -74,7 +75,7 @@ export function cleanHtml(rawHtml: string, url: string): CleanedResult {
     try {
       doc.querySelectorAll(selector).forEach((el) => el.remove());
     } catch (e) {
-      console.warn(`Cleanup error for selector ${selector}:`, e);
+      logger.warn(`Cleanup error for selector ${selector}:`, e);
     }
   });
 

@@ -4,9 +4,16 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import scrapeRouter from "./routes/scrape";
+import logger from "./utils/logger";
 
 const app: Express = express();
 const PORT = process.env.PORT || 5000;
+
+// When the app is behind a proxy (NGINX, Vercel, Cloudflare, etc.) the
+// `X-Forwarded-For` header will be present. express-rate-limit expects
+// Express to trust the proxy to correctly identify client IPs, otherwise
+// it warns. Enable trusting the first proxy hop to fix that warning.
+app.set("trust proxy", 1);
 
 // Middleware
 app.use(cors()); // Enable CORS for all origins
@@ -42,6 +49,6 @@ if (process.env.NODE_ENV === "production") {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📡 API available at http://localhost:${PORT}/api/scrape`);
+  logger.info(`🚀 Server running on http://localhost:${PORT}`);
+  logger.info(`📡 API available at http://localhost:${PORT}/api/scrape`);
 });

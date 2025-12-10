@@ -17,6 +17,7 @@ import { useAppContext } from "../context/AppContext";
 import Prism from "prismjs";
 import "prismjs/themes/prism.css";
 import "prismjs/components/prism-markdown";
+import CodeBlock from "./CodeBlock";
 
 const ResultsSection: React.FC = () => {
   const {
@@ -61,6 +62,10 @@ const ResultsSection: React.FC = () => {
         html: true,
         linkify: true,
         typographer: true,
+        highlight: (code: string, lang: string) => {
+          // Return a data attribute so we can identify code blocks later
+          return `<div data-code-block="${btoa(code)}" data-language="${lang}"></div>`;
+        },
       }),
 
     [],
@@ -68,7 +73,6 @@ const ResultsSection: React.FC = () => {
 
   const renderedContent = useMemo(() => {
     const rawHtml = md.render(localMarkdown);
-
     return DOMPurify.sanitize(rawHtml);
   }, [localMarkdown, md]);
 
@@ -102,6 +106,66 @@ const ResultsSection: React.FC = () => {
   }, [localMarkdown]);
 
   if (!scrapeResult) return null;
+
+  // Helper function to parse markdown and render code blocks with CodeBlock component
+  const renderMarkdownWithCodeBlocks = (
+    markdownText: string,
+    mdInstance: any,
+  ) => {
+    // Split markdown by code fence markers
+    const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+    let lastIndex = 0;
+    const elements: React.ReactNode[] = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = codeBlockRegex.exec(markdownText)) !== null) {
+      const language = match[1] || "text";
+      const code = match[2];
+
+      // Render markdown before this code block
+      if (match.index > lastIndex) {
+        const beforeCode = markdownText.slice(lastIndex, match.index);
+        const html = mdInstance.render(beforeCode);
+        const sanitized = DOMPurify.sanitize(html);
+        elements.push(
+          <div
+            key={`before-${match.index}`}
+            dangerouslySetInnerHTML={{ __html: sanitized }}
+          />,
+        );
+      }
+
+      // Add the code block component
+      elements.push(
+        <CodeBlock
+          key={`code-${match.index}`}
+          code={code.trim()}
+          language={language}
+        />,
+      );
+
+      lastIndex = match.index + match[0].length;
+    }
+
+    // Render remaining markdown after last code block
+    if (lastIndex < markdownText.length) {
+      const remaining = markdownText.slice(lastIndex);
+      const html = mdInstance.render(remaining);
+      const sanitized = DOMPurify.sanitize(html);
+      elements.push(
+        <div key="remaining" dangerouslySetInnerHTML={{ __html: sanitized }} />,
+      );
+    }
+
+    // If no code blocks found, render entire markdown normally
+    if (elements.length === 0) {
+      const html = mdInstance.render(markdownText);
+      const sanitized = DOMPurify.sanitize(html);
+      return <div dangerouslySetInnerHTML={{ __html: sanitized }} />;
+    }
+
+    return elements;
+  };
 
   return (
     <div
@@ -198,10 +262,9 @@ const ResultsSection: React.FC = () => {
         {activeTab === "preview" && (
           <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
             <div className="max-w-3xl mx-auto p-6 sm:p-8">
-              <article
-                className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: renderedContent }}
-              />
+              <div className="prose max-w-none">
+                {renderMarkdownWithCodeBlocks(localMarkdown, md)}
+              </div>
             </div>
           </div>
         )}
