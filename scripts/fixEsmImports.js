@@ -35,7 +35,10 @@ function fixImportsInFile(filePath) {
   content = content.replace(/from\s+["']@\/(.+?)["']/g, (match, aliasPath) => {
     const targetPathNoExt = path.join(distDir, aliasPath);
     let targetFull = "";
-    if (fs.existsSync(targetPathNoExt) && fs.statSync(targetPathNoExt).isDirectory()) {
+    if (
+      fs.existsSync(targetPathNoExt) &&
+      fs.statSync(targetPathNoExt).isDirectory()
+    ) {
       targetFull = path.join(targetPathNoExt, "index.js");
     } else if (fs.existsSync(targetPathNoExt + ".js")) {
       targetFull = targetPathNoExt + ".js";
@@ -71,4 +74,6 @@ function walkDir(dir) {
 }
 
 walkDir(distDir);
-console.log("✓ ESM imports fixed with .js extensions and directory/index.js paths");
+console.log(
+  "✓ ESM imports fixed with .js extensions and directory/index.js paths",
+);

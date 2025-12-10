@@ -1,11 +1,9 @@
 import { VercelRequest, VercelResponse } from "@vercel/node";
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse,
-) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Import compiled server modules from dist
-  const { scrapeUrlGenerator } = await import("../server/dist/server/services/scraperService.js");
+  const { scrapeUrlGenerator } =
+    await import("../server/dist/server/services/scraperService.js");
   const loggerMod = await import("../server/dist/server/utils/logger.js");
   const logger = loggerMod.default;
   if (req.method !== "POST") {
@@ -35,8 +33,12 @@ export default async function handler(
     logger.error("Stream error:", error);
     const errMsg = error?.message || "Internal Server Error";
     // Use plain string status to avoid importing TS-only enums at runtime
-    res.write(`data: ${JSON.stringify({ type: "status", status: "ERROR" })}\n\n`);
-    res.write(`data: ${JSON.stringify({ type: "error", message: errMsg })}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({ type: "status", status: "ERROR" })}\n\n`,
+    );
+    res.write(
+      `data: ${JSON.stringify({ type: "error", message: errMsg })}\n\n`,
+    );
     res.end();
   }
 }

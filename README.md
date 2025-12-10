@@ -1,5 +1,7 @@
 # Web to Markdown Converter
 
+![screenshot](/screenshot.png)
+
 Convert any web page to clean, formatted Markdown with AI-powered processing.
 
 ## Features
@@ -94,10 +96,6 @@ curl -X POST http://localhost:5000/api/scrape \
 npm run build
 npm start
 ```
-
-## View in AI Studio
-
-https://ai.studio/apps/drive/133ohtPU7qet4Z6m2gCVC0c_vVkv-fkeA
 
 ## Deploy to Vercel
 
