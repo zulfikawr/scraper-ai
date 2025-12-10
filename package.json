@@ -7,7 +7,7 @@
     "dev": "vite",
     "dev:server": "tsx watch server/server.ts",
     "dev:both": "concurrently \"npm run dev\" \"npm run dev:server\"",
-    "build": "vite build && tsc -p server/tsconfig.json",
+    "build": "vite build && tsc -p server/tsconfig.json && node scripts/fixEsmImports.js",
     "build:server": "tsc -p server/tsconfig.json",
     "preview": "vite preview",
     "start": "node server/dist/server.js"
