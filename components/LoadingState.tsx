@@ -56,7 +56,7 @@ const LoadingState: React.FC = () => {
             <h3 className="text-lg font-medium text-zinc-900">
               {status === ScrapeStatus.SCRAPING && "Fetching Content"}
               {status === ScrapeStatus.CLEANING && "Cleaning Noise"}
-              {status === ScrapeStatus.PROCESSING && "AI Formatting"}
+              {status === ScrapeStatus.CONVERTING && "Converting into Markdown"}
             </h3>
 
             <p className="mt-2 text-sm text-zinc-500 max-w-xs mx-auto leading-relaxed">
@@ -64,8 +64,8 @@ const LoadingState: React.FC = () => {
                 "Accessing the URL and retrieving raw HTML structure..."}
               {status === ScrapeStatus.CLEANING &&
                 "Removing ads, navigation, and unnecessary scripts..."}
-              {status === ScrapeStatus.PROCESSING &&
-                "Gemini is organizing the content into structured Markdown..."}
+              {status === ScrapeStatus.CONVERTING &&
+                "Organizing the content into structured Markdown..."}
             </p>
           </motion.div>
         </AnimatePresence>
@@ -92,7 +92,7 @@ const LoadingState: React.FC = () => {
           state={
             status === ScrapeStatus.CLEANING
               ? "active"
-              : status === ScrapeStatus.PROCESSING ||
+              : status === ScrapeStatus.CONVERTING ||
                   status === ScrapeStatus.SUCCESS
                 ? "completed"
                 : "inactive"
@@ -104,7 +104,7 @@ const LoadingState: React.FC = () => {
           className="w-8 h-px"
           animate={{
             backgroundColor:
-              status === ScrapeStatus.PROCESSING ||
+              status === ScrapeStatus.CONVERTING ||
               status === ScrapeStatus.SUCCESS
                 ? "#22c55e"
                 : "#e4e4e7",
@@ -112,8 +112,8 @@ const LoadingState: React.FC = () => {
         />
 
         <StepBadge
-          label="3. FORMAT"
-          state={status === ScrapeStatus.PROCESSING ? "active" : "inactive"}
+          label="3. CONVERT"
+          state={status === ScrapeStatus.CONVERTING ? "active" : "inactive"}
         />
       </div>
     </motion.div>

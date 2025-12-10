@@ -5,15 +5,13 @@ import {
   Link2,
   Image as ImageIcon,
   Link as LinkIcon,
-  Sparkles,
   Settings2,
   Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence, Variants } from "motion/react";
 import { ScrapeOptions, ScrapeStatus } from "../types";
 import { useAppContext } from "../context/AppContext";
-import { fetchPage, processContent } from "../services/scraperService";
-import { convertToMarkdown } from "../services/geminiService";
+import { scrapeUrlStream } from "../services/api";
 
 // --- Animation Variants ---
 const containerVariants: Variants = {
@@ -54,7 +52,6 @@ const InputSection: React.FC = () => {
   const [options, setOptions] = useState<ScrapeOptions>({
     includeImages: true,
     includeLinks: true,
-    cleanNoise: true,
   });
 
   useEffect(() => {
@@ -83,40 +80,39 @@ const InputSection: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (url.trim()) {
-      setStatus(ScrapeStatus.SCRAPING);
+      setStatus(ScrapeStatus.SCRAPING); // Initial state
       setLoading(true);
       setError(null);
       setScrapeResult(null);
       setMarkdown("");
 
       try {
-        const { rawHtml, url: validUrl } = await fetchPage(url);
+        //  - Visualizing how chunks arrive
+        const result = await scrapeUrlStream(url, options, {
+          onStatus: (newStatus) => {
+            // This updates the status context in real-time as the server works!
+            setStatus(newStatus);
+          },
+        });
 
-        setStatus(ScrapeStatus.CLEANING);
-        await new Promise((r) => setTimeout(r, 500)); // UX Delay
-
-        const result = await processContent(rawHtml, validUrl, options);
+        // Handle Success
         setScrapeResult(result);
+        setMarkdown(result.markdown);
+        setStatus(ScrapeStatus.SUCCESS);
 
-        setStatus(ScrapeStatus.PROCESSING);
-        const md = await convertToMarkdown(
-          result.cleanText,
-          result.url,
-          options,
-        );
-        setMarkdown(md);
-
-        setHistory((prevHistory) => [
+        // Add to history...
+        setHistory((prev) => [
           {
             id: new Date().toISOString(),
             url: result.url,
             title: result.title,
-            markdown: md,
+            markdown: result.markdown,
             timestamp: Date.now(),
           },
-          ...prevHistory,
+          ...prev,
         ]);
-        setStatus(ScrapeStatus.SUCCESS);
+
+        setUrl("");
       } catch (err: any) {
         console.error(err);
         setStatus(ScrapeStatus.ERROR);
@@ -134,7 +130,7 @@ const InputSection: React.FC = () => {
   const isLoading =
     status === ScrapeStatus.SCRAPING ||
     status === ScrapeStatus.CLEANING ||
-    status === ScrapeStatus.PROCESSING;
+    status === ScrapeStatus.CONVERTING;
 
   return (
     <motion.div
@@ -177,8 +173,9 @@ const InputSection: React.FC = () => {
 
       {/* Main Input Card */}
       <motion.div
+        layoutId="input-section"
         variants={itemVariants}
-        className="relative w-full max-w-2xl mx-auto group"
+        className="relative w-full max-w-2xl mx-auto group z-50"
       >
         <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 via-zinc-400 to-zinc-200 rounded-2xl blur opacity-20 sm:opacity-30 group-hover:opacity-75 transition duration-1000 group-hover:duration-200 animate-bg-pan group-hover:blur-md"></div>
         <div className="absolute -bottom-2 left-2 right-2 h-full bg-zinc-900/5 rounded-2xl blur-lg -z-10 opacity-70 group-hover:opacity-100 transition-all duration-300"></div>
@@ -192,7 +189,7 @@ const InputSection: React.FC = () => {
             </div>
 
             <input
-              type="url"
+              type="text"
               placeholder="Paste article URL..."
               className="w-full pl-10 sm:pl-12 pr-4 py-3 bg-transparent text-zinc-900 placeholder-zinc-400 focus:outline-none text-base font-medium font-sans h-10 border-none ring-0"
               value={url}
@@ -260,12 +257,6 @@ const InputSection: React.FC = () => {
                 onClick={() => toggleOption("includeLinks")}
                 icon={LinkIcon}
                 label="Links"
-              />
-              <OptionButton
-                isActive={options.cleanNoise}
-                onClick={() => toggleOption("cleanNoise")}
-                icon={Sparkles}
-                label="Clean"
               />
             </div>
           </div>

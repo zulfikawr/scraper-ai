@@ -14,9 +14,9 @@ import {
 } from "lucide-react";
 import { TabType, ScrapeStatus } from "../types";
 import { useAppContext } from "../context/AppContext";
-
-// Declare Prism global
-declare const Prism: any;
+import Prism from "prismjs";
+import "prismjs/themes/prism.css";
+import "prismjs/components/prism-markdown";
 
 const ResultsSection: React.FC = () => {
   const {
@@ -78,7 +78,7 @@ const ResultsSection: React.FC = () => {
     const textToCopy =
       activeTab === "preview" || activeTab === "markdown"
         ? localMarkdown
-        : scrapeResult.rawHtml;
+        : scrapeResult.html;
 
     navigator.clipboard.writeText(textToCopy);
     setCopied(true);
@@ -249,7 +249,7 @@ const ResultsSection: React.FC = () => {
         {activeTab === "raw" && (
           <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
             <pre className="p-6 text-xs font-mono text-zinc-500 leading-relaxed whitespace-pre-wrap break-all">
-              {scrapeResult.rawHtml}
+              {scrapeResult.html}
             </pre>
           </div>
         )}

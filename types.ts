@@ -1,19 +1,15 @@
 export interface ScrapeResult {
   url: string;
   title: string;
-  rawHtml: string;
-  cleanText: string;
-}
-
-export interface AiProcessResult {
   markdown: string;
+  html: string;
 }
 
 export enum ScrapeStatus {
   IDLE = "IDLE",
   SCRAPING = "SCRAPING",
   CLEANING = "CLEANING",
-  PROCESSING = "PROCESSING",
+  CONVERTING = "CONVERTING",
   SUCCESS = "SUCCESS",
   ERROR = "ERROR",
 }
@@ -21,10 +17,14 @@ export enum ScrapeStatus {
 export type TabType = "preview" | "markdown" | "raw";
 
 export interface ScrapeOptions {
-  includeImages: boolean;
-  includeLinks: boolean;
-  cleanNoise: boolean; // Removes ads, navs, comments, etc.
+  includeImages?: boolean;
+  includeLinks?: boolean;
 }
+
+export type ScrapeYield =
+  | { type: "status"; status: ScrapeStatus }
+  | { type: "result"; data: ScrapeResult }
+  | { type: "error"; message: string };
 
 export interface HistoryItem {
   id: string;
