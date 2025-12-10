@@ -4,21 +4,10 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse,
 ) {
-  // Dynamically import compiled server code (preferred) or fall back to source during local dev
-  let scrapeUrlGenerator: any;
-  let logger: any;
-  try {
-    const mod = await import("../server/dist/server/services/scraperService.js");
-    scrapeUrlGenerator = mod.scrapeUrlGenerator;
-    const logMod = await import("../server/dist/server/utils/logger.js");
-    logger = logMod.default;
-  } catch (e) {
-    // Fallback to TS source (useful for local dev where dist may not exist)
-    const mod = await import("../server/services/scraperService.js").catch(() => import("../server/services/scraperService.ts"));
-    scrapeUrlGenerator = mod.scrapeUrlGenerator;
-    const logMod = await import("../server/utils/logger.js").catch(() => import("../server/utils/logger.ts"));
-    logger = logMod.default;
-  }
+  // Import compiled server modules from dist
+  const { scrapeUrlGenerator } = await import("../server/dist/server/services/scraperService.js");
+  const loggerMod = await import("../server/dist/server/utils/logger.js");
+  const logger = loggerMod.default;
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
