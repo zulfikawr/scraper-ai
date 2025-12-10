@@ -2,6 +2,7 @@
 /**
  * Post-build script: Add .js extensions to relative imports in ESM output.
  * This ensures Node.js can resolve ESM imports at runtime.
+ * Also converts directory imports to ./dir/index.js format.
  */
 import fs from "fs";
 import path from "path";
@@ -17,7 +18,16 @@ function fixImportsInFile(filePath) {
   // Handles: from "../functions/scrape" -> from "../functions/scrape.js"
   content = content.replace(
     /from\s+["'](\.[./][^"']*?)(?<!\.js)(?<!\.json)["']/g,
-    'from "$1.js"',
+    (match, importPath) => {
+      // Check if the import path (without .js) is a directory in dist
+      const fullPath = path.join(path.dirname(filePath), importPath);
+      if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+        // It's a directory, import from index.js
+        return `from "${importPath}/index.js"`;
+      }
+      // It's a file, add .js extension
+      return `from "${importPath}.js"`;
+    },
   );
 
   fs.writeFileSync(filePath, content, "utf-8");
@@ -37,4 +47,4 @@ function walkDir(dir) {
 }
 
 walkDir(distDir);
-console.log("✓ ESM imports fixed with .js extensions");
+console.log("✓ ESM imports fixed with .js extensions and directory/index.js paths");
