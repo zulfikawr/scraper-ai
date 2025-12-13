@@ -1,6 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
-import MarkdownIt from "markdown-it";
-import DOMPurify from "dompurify";
+import React, { useState, useEffect } from "react";
 import {
   Eye,
   Code2,
@@ -14,10 +12,8 @@ import {
 } from "lucide-react";
 import { TabType, ScrapeStatus } from "../types";
 import { useAppContext } from "../context/AppContext";
-import Prism from "prismjs";
-import "prismjs/themes/prism.css";
-import "prismjs/components/prism-markdown";
-import CodeBlock from "./CodeBlock";
+import { renderMarkdown } from "../function/renderMarkdown";
+import { EditMarkdown } from "../function/editMarkdown";
 
 type ResultsMode = "convert" | "scrape" | "clean";
 
@@ -41,11 +37,13 @@ const ResultsSection: React.FC<ResultsSectionProps> = ({
 
   const [activeTab, setActiveTab] = useState<TabType>("preview");
   const [copied, setCopied] = useState(false);
-  const [localMarkdown, setLocalMarkdown] = useState(markdown);
-
-  useEffect(() => {
-    setLocalMarkdown(markdown);
-  }, [markdown]);
+  // localMarkdown is now managed in EditMarkdown for the editor,
+  // but we still pass markdown from context and a setter.
+  // Actually, EditMarkdown needs the base state to be able to update parent.
+  // The 'localMarkdown' state in ResultsSection was primarily for the editor.
+  // We can pass setMarkdown directly to EditMarkdown/onBlur,
+  // but better to keep the pattern 'EditMarkdown' handles its own local state and syncs on blur?
+  // Yes, EditMarkdown takes 'markdown' (initial) and 'setMarkdown' (on commit).
 
   useEffect(() => {
     if (status === ScrapeStatus.SUCCESS && scrapeResult) {
@@ -73,26 +71,12 @@ const ResultsSection: React.FC<ResultsSectionProps> = ({
     setIsMaximized(!isMaximized);
   };
 
-  const md = useMemo(
-    () =>
-      new MarkdownIt({
-        html: true,
-        linkify: true,
-        typographer: true,
-        highlight: (code: string, lang: string) => {
-          // Return a data attribute so we can identify code blocks later
-          return `<div data-code-block="${btoa(code)}" data-language="${lang}"></div>`;
-        },
-      }),
-    [],
-  );
-
   const handleCopy = () => {
     if (!scrapeResult) return;
 
     const textToCopy =
       activeTab === "preview" || activeTab === "markdown"
-        ? localMarkdown
+        ? markdown // Copy the current markdown state
         : scrapeResult.html;
 
     navigator.clipboard.writeText(textToCopy);
@@ -100,94 +84,12 @@ const ResultsSection: React.FC<ResultsSectionProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const highlightedCode = useMemo(() => {
-    if (
-      typeof Prism !== "undefined" &&
-      Prism.languages &&
-      Prism.languages.markdown
-    ) {
-      return Prism.highlight(
-        localMarkdown,
-        Prism.languages.markdown,
-        "markdown",
-      );
-    }
-
-    return localMarkdown;
-  }, [localMarkdown]);
-
   if (!scrapeResult) return null;
 
-  // Helper function to parse markdown and render code blocks with CodeBlock component
-  const renderMarkdownWithCodeBlocks = (
-    markdownText: string,
-    mdInstance: MarkdownIt,
-  ) => {
-    // Split markdown by code fence markers
-    const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
-    let lastIndex = 0;
-    const elements: React.ReactNode[] = [];
-    let match: RegExpExecArray | null;
-
-    while ((match = codeBlockRegex.exec(markdownText)) !== null) {
-      const language = match[1] || "text";
-      const code = match[2];
-
-      // Render markdown before this code block
-      if (match.index > lastIndex) {
-        const beforeCode = markdownText.slice(lastIndex, match.index);
-        const html = mdInstance.render(beforeCode);
-        const sanitized = DOMPurify.sanitize(html);
-        elements.push(
-          <div
-            key={`before-${match.index}`}
-            dangerouslySetInnerHTML={{ __html: sanitized }}
-          />,
-        );
-      }
-
-      // Add the code block component
-      elements.push(
-        <CodeBlock
-          key={`code-${match.index}`}
-          code={code.trim()}
-          language={language}
-        />,
-      );
-
-      lastIndex = match.index + match[0].length;
-    }
-
-    // Render remaining markdown after last code block
-    if (lastIndex < markdownText.length) {
-      const remaining = markdownText.slice(lastIndex);
-      const html = mdInstance.render(remaining);
-      const sanitized = DOMPurify.sanitize(html);
-      elements.push(
-        <div key="remaining" dangerouslySetInnerHTML={{ __html: sanitized }} />,
-      );
-    }
-
-    // If no code blocks found, render entire markdown normally
-    if (elements.length === 0) {
-      const html = mdInstance.render(markdownText);
-      const sanitized = DOMPurify.sanitize(html);
-      return <div dangerouslySetInnerHTML={{ __html: sanitized }} />;
-    }
-
-    return elements;
-  };
-
-  // Determine which tabs to show based on mode
   const effectiveMode = scrapeResult.mode || mode;
   const shouldShowPreview = effectiveMode === "convert";
   const shouldShowMarkdown = effectiveMode === "convert";
   const shouldShowRaw = effectiveMode === "scrape" || effectiveMode === "clean";
-
-  // Guard against missing scrapeResult
-  if (!scrapeResult) {
-    return null;
-  }
 
   return (
     <div
@@ -234,7 +136,6 @@ const ResultsSection: React.FC<ResultsSectionProps> = ({
               ) : (
                 <Copy className="h-3.5 w-3.5" />
               )}
-
               {copied ? "Copied" : "Copy"}
             </button>
 
@@ -296,51 +197,13 @@ const ResultsSection: React.FC<ResultsSectionProps> = ({
         {activeTab === "preview" && (
           <div className="absolute inset-0 overflow-y-auto custom-scrollbar">
             <div className="max-w-3xl mx-auto p-6 sm:p-8">
-              <div className="prose max-w-none">
-                {renderMarkdownWithCodeBlocks(localMarkdown, md)}
-              </div>
+              <div className="prose max-w-none">{renderMarkdown(markdown)}</div>
             </div>
           </div>
         )}
 
         {activeTab === "markdown" && (
-          <div className="absolute inset-0 flex flex-col bg-white">
-            <div
-              className="relative flex-grow overflow-y-auto custom-scrollbar cursor-text bg-white"
-              onClick={(e) => {
-                const textarea = e.currentTarget.querySelector("textarea");
-                textarea?.focus();
-              }}
-            >
-              <div className="grid grid-cols-1 grid-rows-1 min-h-full">
-                <pre
-                  className="col-start-1 row-start-1 w-full h-full !p-6 !m-0 !bg-transparent !border-0 text-sm font-mono leading-relaxed whitespace-pre-wrap break-words pointer-events-none text-zinc-800 z-0"
-                  style={{ tabSize: 2 }}
-                  aria-hidden="true"
-                  dangerouslySetInnerHTML={{
-                    __html: highlightedCode + "<br/>",
-                  }}
-                />
-
-                <textarea
-                  className="col-start-1 row-start-1 w-full h-full !p-6 !m-0 !bg-transparent !border-0 text-sm font-mono leading-relaxed whitespace-pre-wrap break-words text-transparent caret-zinc-900 resize-none outline-none z-10 overflow-hidden"
-                  style={{ tabSize: 2 }}
-                  value={localMarkdown}
-                  onChange={(e) => setLocalMarkdown(e.target.value)}
-                  onBlur={() => setMarkdown(localMarkdown)}
-                  spellCheck={false}
-                  autoCapitalize="off"
-                  autoComplete="off"
-                  autoCorrect="off"
-                />
-              </div>
-            </div>
-
-            <div className="bg-zinc-50 text-zinc-500 text-xs py-1.5 px-4 border-t border-zinc-100 flex justify-between items-center shrink-0 z-20">
-              <span>Markdown Mode</span>
-              <span>{localMarkdown.length} chars</span>
-            </div>
-          </div>
+          <EditMarkdown markdown={markdown} setMarkdown={setMarkdown} />
         )}
 
         {activeTab === "raw" && (

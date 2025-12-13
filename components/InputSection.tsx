@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence, Variants } from "motion/react";
 import { ScrapeOptions, ScrapeStatus } from "../types";
 import { useAppContext } from "../context/AppContext";
+import { validateUrl } from "../function/validateUrl";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -101,7 +102,8 @@ const InputSection: React.FC<InputSectionProps> = ({
       setError(null);
 
       try {
-        await onSubmit(url, options);
+        const normalizedUrl = validateUrl(url);
+        await onSubmit(normalizedUrl, options);
         setUrl("");
       } catch (err: unknown) {
         console.error(err);
