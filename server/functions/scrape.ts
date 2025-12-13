@@ -4,6 +4,12 @@ import logger from "../utils/logger";
 
 const FETCH_TIMEOUT_MS = 60000;
 
+interface CloudflareApiResponse {
+  success: boolean;
+  errors?: Array<{ message: string }>;
+  result?: string;
+}
+
 async function fetchWithTimeout(
   url: string,
   options: RequestInit = {},
@@ -22,15 +28,6 @@ async function fetchWithTimeout(
     clearTimeout(id);
     throw error;
   }
-}
-
-async function renderWithBrowser(url: string): Promise<string> {
-  // This function was previously implemented with Playwright. Playwright
-  // has been removed in favor of Cloudflare Browser Rendering. Keep this
-  // placeholder to preserve function signature in case older code calls it.
-  throw new Error(
-    "local browser rendering removed; use Cloudflare Browser Rendering instead",
-  );
 }
 
 export async function cloudflareFetchRenderedHtml(
@@ -55,20 +52,21 @@ export async function cloudflareFetchRenderedHtml(
     body: JSON.stringify({ url }),
   });
 
-  const json = await response.json();
-  if (!response.ok || json?.success !== true) {
-    throw new Error(json?.errors?.[0]?.message || response.statusText);
+  const json = (await response.json()) as CloudflareApiResponse;
+
+  if (!response.ok || json.success !== true) {
+    const errorMsg = json.errors?.[0]?.message || response.statusText;
+    throw new Error(errorMsg);
   }
 
-  logger.info(
-    `Cloudflare: fetched rendered HTML (${String(json.result || "").length} chars)`,
-  );
-  return String(json.result || "");
+  const result = json.result || "";
+  logger.info(`Cloudflare: fetched rendered HTML (${result.length} chars)`);
+  return String(result);
 }
 
 /**
  * Fetches raw HTML for a URL. If `options.useBrowser` is true, attempts
- * to render the page with a headless browser (Playwright) and falls back
+ * to render the page with Cloudflare Browser Rendering and falls back
  * to the existing proxy fetch if browser rendering fails.
  */
 export async function scrapeRawHtml(
@@ -89,16 +87,18 @@ export async function scrapeRawHtml(
   if (options.useBrowser) {
     try {
       const rendered = await cloudflareFetchRenderedHtml(validUrl);
-      if (rendered && rendered.length > 50)
+      if (rendered && rendered.length > 50) {
         return {
           html: rendered,
           source: "cloudflare",
           fetchedChars: rendered.length,
         };
-    } catch (err) {
+      }
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       logger.warn(
         "Falling back to proxy fetch after Cloudflare render error",
-        (err as any)?.message || err,
+        errorMessage,
       );
     }
   }
@@ -124,8 +124,10 @@ export async function scrapeRawHtml(
       };
     }
     throw new Error("Content too short");
-  } catch (e: any) {
+  } catch (e: unknown) {
     logger.error("Proxy failed:", e);
-    throw new Error(`Failed to fetch via proxy: ${(e as any).message}`);
+
+    const errorMessage = e instanceof Error ? e.message : String(e);
+    throw new Error(`Failed to fetch via proxy: ${errorMessage}`);
   }
 }

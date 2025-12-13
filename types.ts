@@ -3,6 +3,7 @@ export interface ScrapeResult {
   title: string;
   markdown: string;
   html: string;
+  mode?: "convert" | "scrape" | "clean";
 }
 
 export enum ScrapeStatus {
@@ -22,6 +23,9 @@ export interface ScrapeOptions {
   // When true, the server will use a headless browser to render the page
   // before extracting HTML. Useful for client-side rendered sites.
   useBrowser?: boolean;
+  // Choose the AI provider for markdown conversion: "gemini" | "deepseek"
+  // Falls back through the chain if the primary provider fails
+  aiProvider?: "gemini" | "deepseek";
 }
 
 export type ScrapeYield =
@@ -41,4 +45,6 @@ export interface HistoryItem {
   title: string;
   markdown: string;
   timestamp: number;
+  operation: "convert" | "scrape" | "clean"; // Track which operation created this item
+  html?: string;
 }

@@ -7,10 +7,10 @@ import HistoryGrid from "@/components/HistoryGrid";
 import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import { SpiderWeb } from "@/components/SpiderWeb";
-import { convertToMarkdown } from "@/services/api";
-import { ScrapeOptions, ScrapeStatus } from "@/types";
+import { scrapeUrl } from "@/services/api";
+import { ScrapeOptions, ScrapeStatus, ScrapeResult } from "@/types";
 
-export const HomePage: React.FC = () => {
+export const ScrapePage: React.FC = () => {
   const {
     loading,
     error,
@@ -20,16 +20,16 @@ export const HomePage: React.FC = () => {
     setStatus,
     setLoading,
     setError,
-    setHistory,
     setScrapeResult,
     setMarkdown,
     setLogMessage,
+    setHistory,
   } = useAppContext();
 
   const showHistoryGrid =
     !loading && status !== "SUCCESS" && history.length > 0;
 
-  const handleConvertSubmit = async (url: string, options: ScrapeOptions) => {
+  const handleScrapeSubmit = async (url: string, _options: ScrapeOptions) => {
     setStatus(ScrapeStatus.SCRAPING);
     setLoading(true);
     setError(null);
@@ -37,49 +37,40 @@ export const HomePage: React.FC = () => {
     setMarkdown("");
 
     try {
-      const result = await convertToMarkdown({ url }, options, {
-        onStatus: (newStatus) => {
-          setStatus(newStatus);
-        },
-        onLog: (level, message, autoEnableBrowser) => {
-          if (autoEnableBrowser) {
-            // Note: this is client-side, you can't update options here
-            // Consider passing this info through the UI instead
-          }
-          if (level === "error") {
-            setError(message);
-          }
-          setLogMessage(`[${level.toUpperCase()}] ${message}`);
-        },
-      });
+      setLogMessage("Fetching raw HTML...");
 
-      if (!result.markdown || result.markdown.trim().length === 0) {
-        setStatus(ScrapeStatus.ERROR);
-        setError(
-          "No content extracted. This might be a CSR website — try toggling Browser mode.",
-        );
-      } else {
-        setScrapeResult({ ...result, mode: "convert" });
-        setMarkdown(result.markdown);
-        setStatus(ScrapeStatus.SUCCESS);
+      const result = await scrapeUrl(url, _options);
 
-        setHistory((prev) => [
-          {
-            id: new Date().toISOString(),
-            url: result.url,
-            title: result.title,
-            markdown: result.markdown,
-            timestamp: Date.now(),
-            operation: "convert",
-          },
-          ...prev,
-        ]);
-      }
+      const scrapeResult: ScrapeResult = {
+        url: result.url,
+        title: result.title,
+        html: result.html,
+        markdown: "", // No markdown for scrape-only
+        mode: "scrape",
+      };
+
+      setScrapeResult(scrapeResult);
+      setStatus(ScrapeStatus.SUCCESS);
+      setLogMessage(`Successfully scraped ${result.chars} characters`);
+
+      // Save to history
+      setHistory((prev) => [
+        {
+          id: new Date().toISOString(),
+          url: result.url,
+          title: result.title,
+          markdown: "",
+          html: result.html,
+          timestamp: Date.now(),
+          operation: "scrape",
+        },
+        ...prev,
+      ]);
     } catch (err: unknown) {
       console.error(err);
       setStatus(ScrapeStatus.ERROR);
 
-      let errorMessage = "An unexpected error occurred.";
+      let errorMessage = "Failed to scrape URL";
 
       if (err instanceof Error) {
         errorMessage = err.message;
@@ -88,6 +79,7 @@ export const HomePage: React.FC = () => {
       }
 
       setError(errorMessage);
+      setLogMessage(`Error: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -106,7 +98,14 @@ export const HomePage: React.FC = () => {
       {/* Main Content */}
       <main className="flex-grow flex flex-col items-center justify-center px-4 sm:px-6 py-12">
         <div className="w-full max-w-5xl">
-          <InputSection onSubmit={handleConvertSubmit} />
+          <InputSection
+            title="Scrape to HTML"
+            subtitle="Extract raw HTML from any URL."
+            placeholder="Paste URL to scrape..."
+            showOptions={true}
+            browserOptionBehavior="always"
+            onSubmit={handleScrapeSubmit}
+          />
 
           {/* Error State */}
           <AnimatePresence mode="wait">
@@ -121,7 +120,7 @@ export const HomePage: React.FC = () => {
           {/* Results Section */}
           <AnimatePresence mode="wait">
             {status === "SUCCESS" && scrapeResult && (
-              <ResultsSection key="results" />
+              <ResultsSection key="results" mode="scrape" />
             )}
           </AnimatePresence>
 

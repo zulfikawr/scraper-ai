@@ -1,21 +1,45 @@
-function format(level: string, args: any[]) {
-  const header = `[${level}]`;
+/**
+ * Use an Enum for log levels to avoid magic strings and typos.
+ */
+export enum LogLevel {
+  INFO = "INFO",
+  WARN = "WARN",
+  ERROR = "ERROR",
+  DEBUG = "DEBUG",
+}
+
+/**
+ * Define an interface.
+ */
+export interface LoggerService {
+  info: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+  debug: (...args: unknown[]) => void;
+}
+
+/**
+ * Formats the log message with a timestamp and level.
+ */
+function format(level: LogLevel, args: unknown[]): unknown[] {
+  const timestamp = new Date().toISOString();
+  const header = `[${timestamp}] [${level}]`;
   return [header, ...args];
 }
 
-export const logger = {
-  info: (...args: any[]) => {
-    console.log(...format("INFO", args));
+export const logger: LoggerService = {
+  info: (...args: unknown[]) => {
+    console.log(...format(LogLevel.INFO, args));
   },
-  warn: (...args: any[]) => {
-    console.warn(...format("WARN", args));
+  warn: (...args: unknown[]) => {
+    console.warn(...format(LogLevel.WARN, args));
   },
-  error: (...args: any[]) => {
-    console.error(...format("ERROR", args));
+  error: (...args: unknown[]) => {
+    console.error(...format(LogLevel.ERROR, args));
   },
-  debug: (...args: any[]) => {
+  debug: (...args: unknown[]) => {
     if (process.env.NODE_ENV !== "production") {
-      console.debug(...format("DEBUG", args));
+      console.debug(...format(LogLevel.DEBUG, args));
     }
   },
 };

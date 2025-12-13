@@ -98,46 +98,23 @@ const LoadingState: React.FC = () => {
       </div>
 
       <div className="mt-6 flex items-center gap-2 text-xs font-mono">
-        <StepBadge
-          label="1. SCRAPE"
-          state={status === ScrapeStatus.SCRAPING ? "active" : "completed"}
-        />
+        {status === ScrapeStatus.SCRAPING && (
+          <>
+            <StepBadge label="SCRAPE" state="active" />
+          </>
+        )}
 
-        <motion.div
-          className="w-8 h-px"
-          animate={{
-            backgroundColor:
-              status !== ScrapeStatus.SCRAPING ? "#22c55e" : "#e4e4e7",
-          }}
-        />
+        {status === ScrapeStatus.CLEANING && (
+          <>
+            <StepBadge label="CLEAN" state="active" />
+          </>
+        )}
 
-        <StepBadge
-          label="2. CLEAN"
-          state={
-            status === ScrapeStatus.CLEANING
-              ? "active"
-              : status === ScrapeStatus.CONVERTING ||
-                  status === ScrapeStatus.SUCCESS
-                ? "completed"
-                : "inactive"
-          }
-        />
-
-        <motion.div
-          className="w-8 h-px"
-          animate={{
-            backgroundColor:
-              status === ScrapeStatus.CONVERTING ||
-              status === ScrapeStatus.SUCCESS
-                ? "#22c55e"
-                : "#e4e4e7",
-          }}
-        />
-
-        <StepBadge
-          label="3. CONVERT"
-          state={status === ScrapeStatus.CONVERTING ? "active" : "inactive"}
-        />
+        {status === ScrapeStatus.CONVERTING && (
+          <>
+            <StepBadge label="CONVERT" state="active" />
+          </>
+        )}
       </div>
     </motion.div>
   );

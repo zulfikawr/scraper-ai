@@ -45,8 +45,9 @@ const HistoryGrid: React.FC = () => {
     const restoredResult: ScrapeResult = {
       url: item.url,
       title: item.title,
-      rawHtml: "",
-      cleanText: "",
+      markdown: item.markdown,
+      html: item.html || "",
+      mode: item.operation,
     };
     setScrapeResult(restoredResult);
     setMarkdown(item.markdown);
@@ -107,17 +108,22 @@ const HistoryGrid: React.FC = () => {
                 boxShadow: "0 10px 30px -10px rgba(0,0,0,0.1)",
               }}
               whileTap={{ scale: 0.98 }}
-              className="group relative bg-white rounded-xl shadow-sm border border-zinc-200 p-4 cursor-pointer flex flex-col h-40"
+              className="group relative bg-white rounded-xl shadow-sm border border-zinc-200 p-4 cursor-pointer flex flex-col min-h-40"
             >
+              {/* Operation Badge */}
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-zinc-100 text-zinc-600">
+                  {item.operation || "convert"}
+                </span>
+              </div>
+
               <div className="flex-grow">
-                <div className="flex justify-between items-start gap-2">
-                  <h3
-                    className="font-medium text-sm text-zinc-900 line-clamp-2 leading-relaxed"
-                    title={item.title}
-                  >
-                    {item.title || "Untitled Page"}
-                  </h3>
-                </div>
+                <h3
+                  className="font-medium text-sm text-zinc-900 line-clamp-2 leading-relaxed"
+                  title={item.title}
+                >
+                  {item.title || "Untitled Page"}
+                </h3>
                 <p className="text-xs text-zinc-400 font-mono mt-2 truncate opacity-70">
                   {new URL(item.url).hostname}
                 </p>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import markdownit from "markdown-it";
+import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import {
   Eye,
@@ -19,7 +19,15 @@ import "prismjs/themes/prism.css";
 import "prismjs/components/prism-markdown";
 import CodeBlock from "./CodeBlock";
 
-const ResultsSection: React.FC = () => {
+type ResultsMode = "convert" | "scrape" | "clean";
+
+interface ResultsSectionProps {
+  mode?: ResultsMode;
+}
+
+const ResultsSection: React.FC<ResultsSectionProps> = ({
+  mode = "convert",
+}) => {
   const {
     scrapeResult,
     markdown,
@@ -42,8 +50,17 @@ const ResultsSection: React.FC = () => {
   useEffect(() => {
     if (status === ScrapeStatus.SUCCESS && scrapeResult) {
       setIsMaximized(true);
+      // Set initial tab based on mode
+      const effectiveMode = scrapeResult.mode || mode;
+      if (effectiveMode === "scrape") {
+        setActiveTab("raw");
+      } else if (effectiveMode === "clean") {
+        setActiveTab("raw");
+      } else {
+        setActiveTab("preview");
+      }
     }
-  }, [status, scrapeResult, setIsMaximized]);
+  }, [status, scrapeResult, setIsMaximized, mode]);
 
   const handleClose = () => {
     setStatus(ScrapeStatus.IDLE);
@@ -58,7 +75,7 @@ const ResultsSection: React.FC = () => {
 
   const md = useMemo(
     () =>
-      markdownit({
+      new MarkdownIt({
         html: true,
         linkify: true,
         typographer: true,
@@ -67,14 +84,8 @@ const ResultsSection: React.FC = () => {
           return `<div data-code-block="${btoa(code)}" data-language="${lang}"></div>`;
         },
       }),
-
     [],
   );
-
-  const renderedContent = useMemo(() => {
-    const rawHtml = md.render(localMarkdown);
-    return DOMPurify.sanitize(rawHtml);
-  }, [localMarkdown, md]);
 
   const handleCopy = () => {
     if (!scrapeResult) return;
@@ -110,7 +121,7 @@ const ResultsSection: React.FC = () => {
   // Helper function to parse markdown and render code blocks with CodeBlock component
   const renderMarkdownWithCodeBlocks = (
     markdownText: string,
-    mdInstance: any,
+    mdInstance: MarkdownIt,
   ) => {
     // Split markdown by code fence markers
     const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
@@ -167,6 +178,17 @@ const ResultsSection: React.FC = () => {
     return elements;
   };
 
+  // Determine which tabs to show based on mode
+  const effectiveMode = scrapeResult.mode || mode;
+  const shouldShowPreview = effectiveMode === "convert";
+  const shouldShowMarkdown = effectiveMode === "convert";
+  const shouldShowRaw = effectiveMode === "scrape" || effectiveMode === "clean";
+
+  // Guard against missing scrapeResult
+  if (!scrapeResult) {
+    return null;
+  }
+
   return (
     <div
       className={`w-full bg-white flex flex-col overflow-hidden ${
@@ -191,7 +213,13 @@ const ResultsSection: React.FC = () => {
               rel="noopener noreferrer"
               className="text-xs text-zinc-400 hover:text-zinc-600 flex items-center gap-1 mt-1 truncate font-mono transition-colors w-fit"
             >
-              {new URL(scrapeResult.url).hostname}{" "}
+              {(() => {
+                try {
+                  return new URL(scrapeResult.url).hostname;
+                } catch {
+                  return scrapeResult.url;
+                }
+              })()}{" "}
               <ExternalLink className="h-3 w-3" />
             </a>
           </div>
@@ -235,26 +263,32 @@ const ResultsSection: React.FC = () => {
         </div>
 
         <div className="flex px-4 sm:px-6 gap-6 overflow-x-auto no-scrollbar">
-          <TabButton
-            active={activeTab === "preview"}
-            onClick={() => setActiveTab("preview")}
-            icon={<Eye className="h-4 w-4" />}
-            label="Preview"
-          />
+          {shouldShowPreview && (
+            <TabButton
+              active={activeTab === "preview"}
+              onClick={() => setActiveTab("preview")}
+              icon={<Eye className="h-4 w-4" />}
+              label="Preview"
+            />
+          )}
 
-          <TabButton
-            active={activeTab === "markdown"}
-            onClick={() => setActiveTab("markdown")}
-            icon={<FileJson2 className="h-4 w-4" />}
-            label="Editor"
-          />
+          {shouldShowMarkdown && (
+            <TabButton
+              active={activeTab === "markdown"}
+              onClick={() => setActiveTab("markdown")}
+              icon={<FileJson2 className="h-4 w-4" />}
+              label="Editor"
+            />
+          )}
 
-          <TabButton
-            active={activeTab === "raw"}
-            onClick={() => setActiveTab("raw")}
-            icon={<Code2 className="h-4 w-4" />}
-            label="HTML"
-          />
+          {shouldShowRaw && (
+            <TabButton
+              active={activeTab === "raw"}
+              onClick={() => setActiveTab("raw")}
+              icon={<Code2 className="h-4 w-4" />}
+              label={effectiveMode === "scrape" ? "HTML" : "Cleaned HTML"}
+            />
+          )}
         </div>
       </div>
 

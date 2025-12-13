@@ -13,7 +13,6 @@ import {
 import { motion, AnimatePresence, Variants } from "motion/react";
 import { ScrapeOptions, ScrapeStatus } from "../types";
 import { useAppContext } from "../context/AppContext";
-import { scrapeUrlStream } from "../services/api";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -39,23 +38,38 @@ const itemVariants: Variants = {
   },
 };
 
-const InputSection: React.FC = () => {
-  const {
-    status,
-    setStatus,
-    setLoading,
-    setError,
-    setHistory,
-    setScrapeResult,
-    setMarkdown,
-    setLogMessage,
-  } = useAppContext();
+interface InputSectionProps {
+  title?: string;
+  subtitle?: string;
+  placeholder?: string;
+  showOptions?: boolean;
+  onSubmit: (url: string, options: ScrapeOptions) => Promise<void>;
+  onOptionsChange?: (options: ScrapeOptions) => void;
+  browserOptionBehavior?: "always" | "detect-url";
+}
+
+const InputSection: React.FC<InputSectionProps> = ({
+  title = "Web to Markdown",
+  subtitle = "Extract, clean, and format web content instantly.",
+  placeholder = "Paste article URL...",
+  showOptions = true,
+  onSubmit,
+  onOptionsChange,
+  browserOptionBehavior = "always",
+}) => {
+  const { status, setError } = useAppContext();
   const [url, setUrl] = useState("");
   const [options, setOptions] = useState<ScrapeOptions>({
     includeImages: true,
     includeLinks: true,
     useBrowser: false,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Check if we should show browser option
+  const showBrowserOption =
+    browserOptionBehavior === "always" ||
+    (browserOptionBehavior === "detect-url" && url.trim().length > 0);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -81,64 +95,34 @@ const InputSection: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (url.trim()) {
-      setStatus(ScrapeStatus.SCRAPING);
-      setLoading(true);
+      setIsSubmitting(true);
       setError(null);
-      setScrapeResult(null);
-      setMarkdown("");
 
       try {
-        const result = await scrapeUrlStream(url, options, {
-          onStatus: (newStatus) => {
-            setStatus(newStatus);
-          },
-          onLog: (level, message, autoEnableBrowser) => {
-            if (autoEnableBrowser) {
-              setOptions((prev) => ({ ...prev, useBrowser: true }));
-            }
-            if (level === "error") {
-              setError(message);
-            }
-            setLogMessage(`[${level.toUpperCase()}] ${message}`);
-          },
-        });
-
-        if (!result.markdown || result.markdown.trim().length === 0) {
-          setStatus(ScrapeStatus.ERROR);
-          setError(
-            "No content extracted. This might be a CSR website — toggle the Browser mode for better results.",
-          );
-        } else {
-          setScrapeResult(result);
-          setMarkdown(result.markdown);
-          setStatus(ScrapeStatus.SUCCESS);
-
-          setHistory((prev) => [
-            {
-              id: new Date().toISOString(),
-              url: result.url,
-              title: result.title,
-              markdown: result.markdown,
-              timestamp: Date.now(),
-            },
-            ...prev,
-          ]);
-
-          setUrl("");
-        }
-      } catch (err: any) {
+        await onSubmit(url, options);
+        setUrl("");
+      } catch (err: unknown) {
         console.error(err);
-        setStatus(ScrapeStatus.ERROR);
-        setError(err.message || "An unexpected error occurred.");
+
+        if (err instanceof Error) {
+          setError(err.message);
+        } else if (typeof err === "string") {
+          setError(err);
+        } else {
+          setError("An unexpected error occurred.");
+        }
       } finally {
-        setLoading(false);
+        setIsSubmitting(false);
       }
     }
   };
 
   const toggleOption = (key: keyof ScrapeOptions) => {
-    setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
+    const newOptions = { ...options, [key]: !options[key] };
+    setOptions(newOptions);
+    onOptionsChange?.(newOptions);
   };
 
   const isLoading =
@@ -176,14 +160,14 @@ const InputSection: React.FC = () => {
           variants={itemVariants}
           className="text-4xl md:text-6xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-zinc-900 to-zinc-500 pb-2"
         >
-          Web to Markdown
+          {title}
         </motion.h1>
 
         <motion.p
           variants={itemVariants}
           className="mt-2 text-zinc-400 text-lg md:text-xl max-w-lg mx-auto font-medium leading-relaxed"
         >
-          Extract, clean, and format web content instantly.
+          {subtitle}
         </motion.p>
       </div>
 
@@ -205,25 +189,25 @@ const InputSection: React.FC = () => {
 
             <input
               type="text"
-              placeholder="Paste article URL..."
+              placeholder={placeholder}
               className="w-full pl-10 sm:pl-12 pr-4 py-3 bg-transparent text-zinc-900 placeholder-zinc-400 focus:outline-none text-base font-medium font-sans h-10 border-none ring-0"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              disabled={isLoading}
+              disabled={isLoading || isSubmitting}
               required
               autoFocus
             />
 
             <motion.button
               type="submit"
-              disabled={isLoading || !url}
+              disabled={isLoading || isSubmitting || !url}
               layout
               className="shrink-0 relative flex items-center justify-center h-10 w-10 md:w-auto md:min-w-[120px] md:px-6 bg-zinc-900 hover:bg-black text-white rounded-xl font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-zinc-200 hover:shadow-zinc-400 overflow-hidden transition-all duration-300"
               whileTap={{ scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 25 }}
             >
               <AnimatePresence mode="wait" initial={false}>
-                {isLoading ? (
+                {isLoading || isSubmitting ? (
                   <motion.div
                     key="loading"
                     initial={{ opacity: 0, scale: 0.5 }}
@@ -252,38 +236,44 @@ const InputSection: React.FC = () => {
             </motion.button>
           </form>
 
-          <div className="border border-zinc-100 my-2" />
+          {showOptions && (
+            <>
+              <div className="border border-zinc-100 my-2" />
 
-          <div className="px-1 sm:px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
-            <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-zinc-500 uppercase tracking-wider select-none">
-              <Settings2 className="h-3 w-3" />
-              <span>Options</span>
-            </div>
+              <div className="px-1 sm:px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
+                <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-zinc-500 uppercase tracking-wider select-none">
+                  <Settings2 className="h-3 w-3" />
+                  <span>Options</span>
+                </div>
 
-            <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-              <OptionButton
-                isActive={options.includeImages}
-                onClick={() => toggleOption("includeImages")}
-                icon={ImageIcon}
-                label="Images"
-                tooltip="Include images"
-              />
-              <OptionButton
-                isActive={options.includeLinks}
-                onClick={() => toggleOption("includeLinks")}
-                icon={LinkIcon}
-                label="Links"
-                tooltip="Format linked text as markdown links"
-              />
-              <OptionButton
-                isActive={options.useBrowser}
-                onClick={() => toggleOption("useBrowser")}
-                icon={Command}
-                label="Browser"
-                tooltip="Enable client-side rendering mode"
-              />
-            </div>
-          </div>
+                <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+                  <OptionButton
+                    isActive={options.includeImages}
+                    onClick={() => toggleOption("includeImages")}
+                    icon={ImageIcon}
+                    label="Images"
+                    tooltip="Include images"
+                  />
+                  <OptionButton
+                    isActive={options.includeLinks}
+                    onClick={() => toggleOption("includeLinks")}
+                    icon={LinkIcon}
+                    label="Links"
+                    tooltip="Format linked text as markdown links"
+                  />
+                  {showBrowserOption && (
+                    <OptionButton
+                      isActive={options.useBrowser}
+                      onClick={() => toggleOption("useBrowser")}
+                      icon={Command}
+                      label="Browser"
+                      tooltip="Enable client-side rendering mode"
+                    />
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </motion.div>
 
@@ -300,18 +290,20 @@ const InputSection: React.FC = () => {
   );
 };
 
-const OptionButton = ({
+interface OptionButtonProps {
+  isActive: boolean;
+  onClick: () => void;
+  icon: React.ElementType<{ className?: string }>;
+  label: string;
+  tooltip: string;
+}
+
+const OptionButton: React.FC<OptionButtonProps> = ({
   isActive,
   onClick,
   icon: Icon,
   label,
   tooltip,
-}: {
-  isActive: boolean;
-  onClick: () => void;
-  icon: any;
-  label: string;
-  tooltip: string;
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -327,7 +319,6 @@ const OptionButton = ({
             className="absolute bottom-full mb-2.5 px-3 py-1.5 bg-zinc-800 text-zinc-50 text-[10px] font-medium rounded-lg whitespace-nowrap shadow-xl z-50"
           >
             {tooltip}
-            {/* Tiny arrow pointing down */}
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-800" />
           </motion.div>
         )}

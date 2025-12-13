@@ -9,15 +9,19 @@ interface ScrapeStreamCallbacks {
   ) => void;
 }
 
-export async function scrapeUrlStream(
-  url: string,
+/**
+ * Convert HTML to Markdown using the full pipeline (SSE streaming)
+ * Accepts URL or HTML input
+ */
+export async function convertToMarkdown(
+  input: { url?: string; html?: string },
   options: ScrapeOptions,
   callbacks: ScrapeStreamCallbacks,
 ): Promise<ScrapeResult> {
-  const response = await fetch("/api/scrape", {
+  const response = await fetch("/api/convert", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, options }),
+    body: JSON.stringify({ ...input, options }),
   });
 
   if (!response.ok) {
@@ -97,4 +101,93 @@ export async function scrapeUrlStream(
 
   if (!resultData) throw new Error("Stream ended without result");
   return resultData;
+}
+
+/**
+ * Scrape a URL and get raw HTML
+ */
+export async function scrapeUrl(
+  url: string,
+  options?: ScrapeOptions,
+): Promise<{
+  url: string;
+  title: string;
+  html: string;
+  source: string;
+  chars: number;
+}> {
+  const response = await fetch("/api/scrape", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, options }),
+  });
+
+  if (!response.ok) {
+    let errorMessage = response.statusText;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch (e) {
+      // If we can't parse JSON, use the status text
+      errorMessage = `Server error: ${response.status}`;
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to scrape URL");
+  }
+
+  return data.data;
+}
+
+/**
+ * Clean HTML (either from raw HTML or from a URL)
+ */
+export async function cleanHtml(input: {
+  html?: string;
+  url?: string;
+  options?: ScrapeOptions;
+}): Promise<{
+  title: string;
+  cleanedHtml: string;
+  chars: number;
+}> {
+  const response = await fetch("/api/clean", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    let errorMessage = response.statusText;
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch (e) {
+      // If we can't parse JSON, use the status text
+      errorMessage = `Server error: ${response.status}`;
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data = await response.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to clean HTML");
+  }
+
+  return data.data;
+}
+
+/**
+ * @deprecated Use convertToMarkdown instead
+ * Scrape a URL and convert to Markdown using the full pipeline
+ */
+export async function scrapeUrlStream(
+  url: string,
+  options: ScrapeOptions,
+  callbacks: ScrapeStreamCallbacks,
+): Promise<ScrapeResult> {
+  return convertToMarkdown({ url }, options, callbacks);
 }

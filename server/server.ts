@@ -4,6 +4,8 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import path from "path";
 import scrapeRouter from "./routes/scrape";
+import cleanRouter from "./routes/clean";
+import convertRouter from "./routes/convert";
 import logger from "./utils/logger";
 
 const app: Express = express();
@@ -35,7 +37,9 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 // API Routes
-app.use("/api", scrapeRouter);
+app.use("/api", scrapeRouter); // POST /api/scrape - Scrape only
+app.use("/api", cleanRouter); // POST /api/clean - Clean HTML
+app.use("/api", convertRouter); // POST /api/convert - Full pipeline with SSE
 
 // Serve static files in production
 if (process.env.NODE_ENV === "production") {
@@ -50,5 +54,10 @@ if (process.env.NODE_ENV === "production") {
 // Start server
 app.listen(PORT, () => {
   logger.info(`🚀 Server running on http://localhost:${PORT}`);
-  logger.info(`📡 API available at http://localhost:${PORT}/api/scrape`);
+  logger.info(`📡 API endpoints:`);
+  logger.info(`   - POST /api/scrape   (fetch raw HTML)`);
+  logger.info(`   - POST /api/clean    (clean HTML)`);
+  logger.info(
+    `   - POST /api/convert  (full pipeline: scrape → clean → markdown)`,
+  );
 });

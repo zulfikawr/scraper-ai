@@ -7,45 +7,50 @@ import CodeBlock from "@/components/CodeBlock";
 const ApiDocsPage: React.FC = () => {
   const examples = [
     {
-      id: "curl",
-      title: "cURL",
+      id: "curl-example",
+      title: "cURL (Bash)",
       language: "bash",
-      code: `curl -N -X POST http://localhost:5000/api/scrape \\
+      code: `curl -X POST http://localhost:5000/api/convert \\
   -H "Content-Type: application/json" \\
-  -d '{"url": "https://example.com"}'`,
+  -d '{"url":"https://example.com/article", "options": {"includeImages": true}}'`,
     },
     {
-      id: "javascript",
-      title: "JavaScript (Streaming)",
-      language: "javascript",
-      code: `const response = await fetch('http://localhost:5000/api/scrape', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ url: 'https://example.com' })
-});
-
-const reader = response.body.getReader();
-const decoder = new TextDecoder();
-
-while (true) {
-  const { done, value } = await reader.read();
-  if (done) break;
-  console.log(decoder.decode(value));
-}`,
-    },
-    {
-      id: "python",
-      title: "Python (Streaming)",
+      id: "python-example",
+      title: "Python (Requests)",
       language: "python",
       code: `import requests
 
-url = 'http://localhost:5000/api/scrape'
-json_data = {'url': 'https://example.com'}
+url = "http://localhost:5000/api/convert"
+payload = {
+    "url": "https://example.com/article",
+    "options": {
+        "includeImages": True,
+        "includeLinks": True
+    }
+}
 
-with requests.post(url, json=json_data, stream=True) as r:
-    for line in r.iter_lines():
-        if line:
-            print(line.decode('utf-8'))`,
+response = requests.post(url, json=payload)
+print(response.json())`,
+    },
+    {
+      id: "node-example",
+      title: "Node.js (Fetch)",
+      language: "javascript",
+      code: `const convertPage = async () => {
+  const response = await fetch('http://localhost:5000/api/convert', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: 'https://example.com/article',
+      options: { includeImages: true }
+    })
+  });
+
+  const data = await response.json();
+  console.log(data);
+};
+
+convertPage();`,
     },
   ];
 
@@ -59,7 +64,7 @@ with requests.post(url, json=json_data, stream=True) as r:
         tension={0.01}
       />
 
-      <main className="flex-grow px-4 sm:px-6 py-12 relative z-10">
+      <main className="flex-grow px-4 sm:px-6 py-12">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <motion.div
@@ -77,13 +82,13 @@ with requests.post(url, json=json_data, stream=True) as r:
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-zinc-900 to-zinc-500 mb-4">
               API Documentation
             </h1>
-            <p className="text-zinc-500 text-lg leading-relaxed max-w-2xl">
+            <p className="text-zinc-500 text-md md:text-lg leading-relaxed max-w-2xl">
               Convert any web page to clean Markdown using our REST API. Perfect
-              for automation, content processing, and integration workflows.
+              for automation, content processing, and LLM workflows.
             </p>
           </motion.div>
 
-          {/* Endpoint Card */}
+          {/* 1. CONVERT Endpoint (Top Priority) */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -100,18 +105,18 @@ with requests.post(url, json=json_data, stream=True) as r:
                         POST
                       </span>
                       <code className="text-base font-mono text-zinc-900 bg-zinc-100 px-2 py-1 rounded">
-                        /api/scrape
+                        /api/convert
                       </code>
                     </div>
                     <p className="text-zinc-600">
-                      Initiates a streaming conversion of a web page to
-                      Markdown.
+                      <strong>Full Pipeline:</strong> Accepts a URL or raw HTML,
+                      cleans it, and converts it to Markdown in one go.
                     </p>
                   </div>
                   <Code2 className="h-6 w-6 text-zinc-400 hidden sm:block" />
                 </div>
 
-                {/* --- Request Parameters --- */}
+                {/* --- Convert: Request --- */}
                 <div className="mb-10">
                   <div className="flex items-center gap-2 mb-4">
                     <Table className="h-4 w-4 text-zinc-500" />
@@ -120,22 +125,23 @@ with requests.post(url, json=json_data, stream=True) as r:
                     </h3>
                   </div>
 
-                  {/* JSON Example */}
                   <div className="mb-6">
                     <CodeBlock
                       code={`{
   "url": "https://example.com/article",
+  // OR
+  "html": "<html>...</html>",
   "options": {
     "includeImages": true,
-    "includeLinks": true
+    "includeLinks": true,
+    "useBrowser": false
   }
 }`}
                       language="json"
                     />
                   </div>
 
-                  {/* Table */}
-                  <div className="overflow-hidden rounded-xl border border-zinc-200">
+                  <div className="overflow-x-scroll rounded-xl border border-zinc-200">
                     <table className="w-full text-sm text-left">
                       <thead className="bg-zinc-50 border-b border-zinc-200">
                         <tr>
@@ -160,30 +166,62 @@ with requests.post(url, json=json_data, stream=True) as r:
                           </td>
                           <td className="px-4 py-3 text-zinc-500">string</td>
                           <td className="px-4 py-3 text-emerald-600 font-medium">
-                            Yes
+                            One of
                           </td>
                           <td className="px-4 py-3 text-zinc-600">
-                            The full URL of the web page to scrape.
+                            The URL to scrape and convert.
                           </td>
                         </tr>
                         <tr className="bg-white hover:bg-zinc-50/50">
                           <td className="px-4 py-3 font-mono text-zinc-900">
+                            html
+                          </td>
+                          <td className="px-4 py-3 text-zinc-500">string</td>
+                          <td className="px-4 py-3 text-emerald-600 font-medium">
+                            One of
+                          </td>
+                          <td className="px-4 py-3 text-zinc-600">
+                            Raw HTML to convert directly.
+                          </td>
+                        </tr>
+                        <tr className="bg-white hover:bg-zinc-50/50">
+                          <td className="px-4 py-3 font-mono text-zinc-900">
+                            options
+                          </td>
+                          <td className="px-4 py-3 text-zinc-500">object</td>
+                          <td className="px-4 py-3 text-zinc-400">No</td>
+                          <td className="px-4 py-3 text-zinc-600">
+                            Configuration object.
+                          </td>
+                        </tr>
+                        <tr className="bg-white hover:bg-zinc-50/50">
+                          <td className="px-4 py-3 font-mono text-zinc-900 pl-8">
                             options.includeImages
                           </td>
                           <td className="px-4 py-3 text-zinc-500">boolean</td>
                           <td className="px-4 py-3 text-zinc-400">No</td>
                           <td className="px-4 py-3 text-zinc-600">
-                            Include images in markdown (default: true).
+                            Include images in the output.
                           </td>
                         </tr>
                         <tr className="bg-white hover:bg-zinc-50/50">
-                          <td className="px-4 py-3 font-mono text-zinc-900">
+                          <td className="px-4 py-3 font-mono text-zinc-900 pl-8">
                             options.includeLinks
                           </td>
                           <td className="px-4 py-3 text-zinc-500">boolean</td>
                           <td className="px-4 py-3 text-zinc-400">No</td>
                           <td className="px-4 py-3 text-zinc-600">
-                            Include links in markdown (default: true).
+                            Format linked text as markdown links.
+                          </td>
+                        </tr>
+                        <tr className="bg-white hover:bg-zinc-50/50">
+                          <td className="px-4 py-3 font-mono text-zinc-900 pl-8">
+                            options.useBrowser
+                          </td>
+                          <td className="px-4 py-3 text-zinc-500">boolean</td>
+                          <td className="px-4 py-3 text-zinc-400">No</td>
+                          <td className="px-4 py-3 text-zinc-600">
+                            Enable client-side rendering mode.
                           </td>
                         </tr>
                       </tbody>
@@ -191,7 +229,7 @@ with requests.post(url, json=json_data, stream=True) as r:
                   </div>
                 </div>
 
-                {/* --- Response Fields --- */}
+                {/* --- Convert: Response --- */}
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <Table className="h-4 w-4 text-zinc-500" />
@@ -200,37 +238,21 @@ with requests.post(url, json=json_data, stream=True) as r:
                     </h3>
                   </div>
 
-                  <p className="text-sm text-zinc-500 mb-4">
-                    The API streams{" "}
-                    <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800">
-                      text/event-stream
-                    </code>{" "}
-                    data. The final event will be of type{" "}
-                    <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800">
-                      result
-                    </code>
-                    .
-                  </p>
-
-                  {/* JSON Example (Success) */}
                   <div className="mb-6">
                     <CodeBlock
-                      code={`// Final Event Data
-{
-  "type": "result",
+                      code={`{
+  "success": true,
   "data": {
-    "url": "https://example.com/article",
     "title": "Article Title",
-    "markdown": "# Article Title\\n\\nArticle content...",
-    "html": "<html>...</html>"
+    "markdown": "# Article Title\\n\\nContent...",
+    "chars": 12345
   }
 }`}
                       language="json"
                     />
                   </div>
 
-                  {/* Table */}
-                  <div className="overflow-hidden rounded-xl border border-zinc-200">
+                  <div className="overflow-x-scroll rounded-xl border border-zinc-200">
                     <table className="w-full text-sm text-left">
                       <thead className="bg-zinc-50 border-b border-zinc-200">
                         <tr>
@@ -248,32 +270,11 @@ with requests.post(url, json=json_data, stream=True) as r:
                       <tbody className="divide-y divide-zinc-100">
                         <tr className="bg-white hover:bg-zinc-50/50">
                           <td className="px-4 py-3 font-mono text-zinc-900">
-                            type
+                            success
                           </td>
-                          <td className="px-4 py-3 text-zinc-500">string</td>
+                          <td className="px-4 py-3 text-zinc-500">boolean</td>
                           <td className="px-4 py-3 text-zinc-600">
-                            Event type:{" "}
-                            <code className="text-xs bg-zinc-100 px-1 rounded">
-                              status
-                            </code>
-                            ,{" "}
-                            <code className="text-xs bg-zinc-100 px-1 rounded">
-                              result
-                            </code>
-                            , or{" "}
-                            <code className="text-xs bg-zinc-100 px-1 rounded">
-                              error
-                            </code>
-                            .
-                          </td>
-                        </tr>
-                        <tr className="bg-white hover:bg-zinc-50/50">
-                          <td className="px-4 py-3 font-mono text-zinc-900">
-                            data.url
-                          </td>
-                          <td className="px-4 py-3 text-zinc-500">string</td>
-                          <td className="px-4 py-3 text-zinc-600">
-                            The final URL after redirects.
+                            Indicates success.
                           </td>
                         </tr>
                         <tr className="bg-white hover:bg-zinc-50/50">
@@ -282,7 +283,7 @@ with requests.post(url, json=json_data, stream=True) as r:
                           </td>
                           <td className="px-4 py-3 text-zinc-500">string</td>
                           <td className="px-4 py-3 text-zinc-600">
-                            The extracted page title.
+                            Extracted page title.
                           </td>
                         </tr>
                         <tr className="bg-white hover:bg-zinc-50/50">
@@ -291,16 +292,16 @@ with requests.post(url, json=json_data, stream=True) as r:
                           </td>
                           <td className="px-4 py-3 text-zinc-500">string</td>
                           <td className="px-4 py-3 text-zinc-600">
-                            The converted Markdown content.
+                            The resulting Markdown content.
                           </td>
                         </tr>
                         <tr className="bg-white hover:bg-zinc-50/50">
                           <td className="px-4 py-3 font-mono text-zinc-900">
-                            data.html
+                            data.chars
                           </td>
-                          <td className="px-4 py-3 text-zinc-500">string</td>
+                          <td className="px-4 py-3 text-zinc-500">number</td>
                           <td className="px-4 py-3 text-zinc-600">
-                            The original raw HTML content.
+                            Character count of markdown.
                           </td>
                         </tr>
                       </tbody>
@@ -311,11 +312,300 @@ with requests.post(url, json=json_data, stream=True) as r:
             </div>
           </motion.div>
 
-          {/* Rate Limiting Info */}
+          {/* 2. SCRAPE Endpoint */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mb-12"
+          >
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 via-zinc-400 to-zinc-200 rounded-2xl blur opacity-10 group-hover:opacity-30 transition duration-300"></div>
+              <div className="relative bg-white rounded-2xl border border-zinc-200 p-6 sm:p-8 shadow-sm">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-sm font-bold rounded-md border border-emerald-200">
+                        POST
+                      </span>
+                      <code className="text-base font-mono text-zinc-900 bg-zinc-100 px-2 py-1 rounded">
+                        /api/scrape
+                      </code>
+                    </div>
+                    <p className="text-zinc-600">
+                      Fetches raw HTML from a URL. Does not clean or convert.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Scrape: Request */}
+                <div className="flex items-center gap-2 mb-4">
+                  <Table className="h-4 w-4 text-zinc-500" />
+                  <h3 className="text-lg font-semibold text-zinc-900">
+                    Request Parameters
+                  </h3>
+                </div>
+
+                <div className="mb-6">
+                  <CodeBlock
+                    code={`{
+  "url": "https://example.com/article",
+  "options": {
+    "useBrowser": false
+  }
+}`}
+                    language="json"
+                  />
+                </div>
+
+                <div className="overflow-x-scroll rounded-xl border border-zinc-200 mb-6">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-zinc-50 border-b border-zinc-200">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold text-zinc-700">
+                          Field
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-zinc-700">
+                          Type
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-zinc-700">
+                          Required
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-zinc-700">
+                          Description
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900">
+                          url
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">string</td>
+                        <td className="px-4 py-3 text-emerald-600 font-medium">
+                          Yes
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          The URL to scrape.
+                        </td>
+                      </tr>
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900">
+                          options
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">object</td>
+                        <td className="px-4 py-3 text-zinc-400">No</td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          Configuration object.
+                        </td>
+                      </tr>
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900 pl-8">
+                          options.useBrowser
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">boolean</td>
+                        <td className="px-4 py-3 text-zinc-400">No</td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          Enable client-side rendering mode.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Scrape: Response */}
+                <div className="flex items-center gap-2 mb-4">
+                  <Table className="h-4 w-4 text-zinc-500" />
+                  <h3 className="text-lg font-semibold text-zinc-900">
+                    Response Format
+                  </h3>
+                </div>
+
+                <div className="mb-6">
+                  <CodeBlock
+                    code={`{
+  "success": true,
+  "data": {
+    "url": "https://example.com/article",
+    "html": "<html>...</html>",
+    "source": "proxy",
+    "chars": 12345
+  }
+}`}
+                    language="json"
+                  />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* 3. CLEAN Endpoint */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
+            className="mb-12"
+          >
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 via-zinc-400 to-zinc-200 rounded-2xl blur opacity-10 group-hover:opacity-30 transition duration-300"></div>
+              <div className="relative bg-white rounded-2xl border border-zinc-200 p-6 sm:p-8 shadow-sm">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <div className="flex items-center gap-3 mb-3">
+                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-700 text-sm font-bold rounded-md border border-emerald-200">
+                        POST
+                      </span>
+                      <code className="text-base font-mono text-zinc-900 bg-zinc-100 px-2 py-1 rounded">
+                        /api/clean
+                      </code>
+                    </div>
+                    <p className="text-zinc-600">
+                      Accepts HTML or URL, scrapes/cleans it, and returns a
+                      sanitized HTML fragment.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Clean: Request */}
+                <div className="flex items-center gap-2 mb-4">
+                  <Table className="h-4 w-4 text-zinc-500" />
+                  <h3 className="text-lg font-semibold text-zinc-900">
+                    Request Parameters
+                  </h3>
+                </div>
+
+                <div className="mb-6">
+                  <CodeBlock
+                    code={`{
+  "html": "<html>...</html>",
+  "url": "https://example.com (optional)",
+  "options": {
+    "includeImages": true,
+    "includeLinks": true,
+    "useBrowser": false
+  }
+}`}
+                    language="json"
+                  />
+                </div>
+
+                <div className="overflow-x-scroll rounded-xl border border-zinc-200 mb-6">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-zinc-50 border-b border-zinc-200">
+                      <tr>
+                        <th className="px-4 py-3 font-semibold text-zinc-700">
+                          Field
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-zinc-700">
+                          Type
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-zinc-700">
+                          Required
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-zinc-700">
+                          Description
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900">
+                          html
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">string</td>
+                        <td className="px-4 py-3 text-emerald-600 font-medium">
+                          One of
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          Raw HTML to be cleaned.
+                        </td>
+                      </tr>
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900">
+                          url
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">string</td>
+                        <td className="px-4 py-3 text-emerald-600 font-medium">
+                          One of
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          URL to scrape and clean.
+                        </td>
+                      </tr>
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900">
+                          options
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">object</td>
+                        <td className="px-4 py-3 text-zinc-400">No</td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          Configuration object.
+                        </td>
+                      </tr>
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900 pl-8">
+                          options.includeImages
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">boolean</td>
+                        <td className="px-4 py-3 text-zinc-400">No</td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          Include images in the output.
+                        </td>
+                      </tr>
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900 pl-8">
+                          options.includeLinks
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">boolean</td>
+                        <td className="px-4 py-3 text-zinc-400">No</td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          Format linked text as markdown links.
+                        </td>
+                      </tr>
+                      <tr className="bg-white hover:bg-zinc-50/50">
+                        <td className="px-4 py-3 font-mono text-zinc-900 pl-8">
+                          options.useBrowser
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500">boolean</td>
+                        <td className="px-4 py-3 text-zinc-400">No</td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          Enable client-side rendering mode.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Clean: Response */}
+                <div className="flex items-center gap-2 mb-4">
+                  <Table className="h-4 w-4 text-zinc-500" />
+                  <h3 className="text-lg font-semibold text-zinc-900">
+                    Response Format
+                  </h3>
+                </div>
+
+                <div className="mb-6">
+                  <CodeBlock
+                    code={`{
+  "success": true,
+  "data": {
+    "title": "Article Title",
+    "cleanedHtml": "<article>...</article>",
+    "chars": 12345
+  }
+}`}
+                    language="json"
+                  />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Rate Limiting Info */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
             className="mb-12 bg-amber-50 border border-amber-200 rounded-xl p-4"
           >
             <div className="flex items-start gap-3">
@@ -345,7 +635,6 @@ with requests.post(url, json=json_data, stream=True) as r:
             <h2 className="text-2xl font-bold text-zinc-900 mb-6">
               Integration Examples
             </h2>
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 via-zinc-400 to-zinc-200 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
             <div className="relative bg-white rounded-2xl border border-zinc-200 p-6 sm:p-8 shadow-md space-y-8">
               {examples.map((example) => (
                 <div key={example.id} className="relative group">

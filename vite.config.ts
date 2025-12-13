@@ -18,9 +18,13 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react(), tailwindcss()],
     define: {
-      "process.env.API_KEY": JSON.stringify(env.GEMINI_API_KEY),
       "process.env.GEMINI_API_KEY": JSON.stringify(env.GEMINI_API_KEY),
       "process.env.WORKER_URL": JSON.stringify(env.WORKER_URL),
+      "process.env.CLOUDFLARE_API_KEY": JSON.stringify(env.CLOUDFLARE_API_KEY),
+      "process.env.CLOUDFLARE_ACCOUNT_ID": JSON.stringify(
+        env.CLOUDFLARE_ACOOUNT_ID,
+      ),
+      "process.env.DEEPSEEK_API_KEY": JSON.stringify(env.DEEPSEEK_API_KEY),
     },
     resolve: {
       alias: {

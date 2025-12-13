@@ -14,16 +14,17 @@ export async function fallbackConvert(
       bulletListMarker: "-",
     });
 
-    // Dynamic ESM import for GFM plugin to avoid `require` in ESM runtime
+    // Dynamic import for GFM plugin
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const turndownPluginGfm = require("turndown-plugin-gfm");
       const gfm = turndownPluginGfm.gfm || turndownPluginGfm;
       turndownService.use(gfm);
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
       logger.warn(
         "Failed to load Turndown GFM plugin, continuing without it.",
-        e?.message || e,
+        errorMessage,
       );
     }
 
@@ -54,8 +55,10 @@ export async function fallbackConvert(
     });
 
     return turndownService.turndown(htmlContent);
-  } catch (error: any) {
-    logger.error("Turndown conversion failed:", error?.message || error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.error("Turndown conversion failed:", errorMessage);
+
     // Ultimate fallback: Just return the raw text if markdown conversion fails
     return htmlContent.replace(/<[^>]*>?/gm, "");
   }
