@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence, Variants } from "motion/react";
 import { ScrapeOptions, ScrapeStatus } from "../types";
 import { useAppContext } from "../context/AppContext";
+import { validateUrl } from "../function/validateUrl";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -43,8 +44,7 @@ interface InputSectionProps {
   subtitle?: string;
   placeholder?: string;
   showOptions?: boolean;
-  onSubmit: (url: string, options: ScrapeOptions) => Promise<void>;
-  onOptionsChange?: (options: ScrapeOptions) => void;
+  onSubmit: (url: string) => Promise<void>;
   browserOptionBehavior?: "always" | "detect-url";
 }
 
@@ -54,16 +54,10 @@ const InputSection: React.FC<InputSectionProps> = ({
   placeholder = "Paste article URL...",
   showOptions = true,
   onSubmit,
-  onOptionsChange,
   browserOptionBehavior = "always",
 }) => {
-  const { status, setError } = useAppContext();
+  const { status, setError, scrapeOptions, setScrapeOptions } = useAppContext();
   const [url, setUrl] = useState("");
-  const [options, setOptions] = useState<ScrapeOptions>({
-    includeImages: true,
-    includeLinks: true,
-    useBrowser: false,
-  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Check if we should show browser option
@@ -101,7 +95,8 @@ const InputSection: React.FC<InputSectionProps> = ({
       setError(null);
 
       try {
-        await onSubmit(url, options);
+        const normalizedUrl = validateUrl(url);
+        await onSubmit(normalizedUrl);
         setUrl("");
       } catch (err: unknown) {
         console.error(err);
@@ -120,9 +115,7 @@ const InputSection: React.FC<InputSectionProps> = ({
   };
 
   const toggleOption = (key: keyof ScrapeOptions) => {
-    const newOptions = { ...options, [key]: !options[key] };
-    setOptions(newOptions);
-    onOptionsChange?.(newOptions);
+    setScrapeOptions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const isLoading =
@@ -248,14 +241,14 @@ const InputSection: React.FC<InputSectionProps> = ({
 
                 <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
                   <OptionButton
-                    isActive={options.includeImages}
+                    isActive={scrapeOptions.includeImages ?? true}
                     onClick={() => toggleOption("includeImages")}
                     icon={ImageIcon}
                     label="Images"
                     tooltip="Include images"
                   />
                   <OptionButton
-                    isActive={options.includeLinks}
+                    isActive={scrapeOptions.includeLinks ?? true}
                     onClick={() => toggleOption("includeLinks")}
                     icon={LinkIcon}
                     label="Links"
@@ -263,7 +256,7 @@ const InputSection: React.FC<InputSectionProps> = ({
                   />
                   {showBrowserOption && (
                     <OptionButton
-                      isActive={options.useBrowser}
+                      isActive={scrapeOptions.useBrowser ?? false}
                       onClick={() => toggleOption("useBrowser")}
                       icon={Command}
                       label="Browser"

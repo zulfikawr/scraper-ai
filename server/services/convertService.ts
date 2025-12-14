@@ -86,7 +86,7 @@ export async function* convertGenerator(
 
     // 2. CLEANING
     yield { type: "status", status: ScrapeStatus.CLEANING };
-    const { title, cleanedHtml } = cleanHtml(rawHtml, url || "");
+    const { title, cleanedHtml } = await cleanHtml(rawHtml, url || "", options);
     logger.info(
       "Cleaned HTML",
       `title=${title}`,
@@ -97,8 +97,8 @@ export async function* convertGenerator(
     yield { type: "status", status: ScrapeStatus.CONVERTING };
     yield { type: "log", level: "info", message: `Converting with AI...` };
 
-    // Pass the full raw HTML to the converter (Cloudflare can process full HTML better)
-    let markdown = await convertToMarkdown(rawHtml, options);
+    // Pass the cleaned HTML to save tokens and improve focus for the AI
+    let markdown = await convertToMarkdown(cleanedHtml, options);
 
     // If markdown is empty, attempt automatic Cloudflare browser-rendered fetch and retry
     if (!markdown || markdown.trim().length === 0) {

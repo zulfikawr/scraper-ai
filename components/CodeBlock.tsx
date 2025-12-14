@@ -47,7 +47,7 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ code, language = "text" }) => {
   }
 
   return (
-    <div className="relative group bg-white rounded-xl overflow-hidden shadow-lg border border-zinc-200 my-4 not-prose">
+    <div className="relative group bg-white rounded-xl overflow-hidden shadow-md border border-zinc-200 my-4 not-prose">
       {/* Header: Title Bar with Language and Copy Button */}
       <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 border-b border-zinc-200">
         <div className="flex items-center gap-2">

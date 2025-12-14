@@ -8,7 +8,7 @@ import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import { SpiderWeb } from "@/components/SpiderWeb";
 import { scrapeUrl } from "@/services/api";
-import { ScrapeOptions, ScrapeStatus, ScrapeResult } from "@/types";
+import { ScrapeStatus, ScrapeResult } from "@/types";
 
 export const ScrapePage: React.FC = () => {
   const {
@@ -16,11 +16,13 @@ export const ScrapePage: React.FC = () => {
     error,
     status,
     history,
+    scrapeOptions,
     scrapeResult,
     setStatus,
     setLoading,
     setError,
     setScrapeResult,
+    setHtml,
     setMarkdown,
     setLogMessage,
     setHistory,
@@ -29,17 +31,18 @@ export const ScrapePage: React.FC = () => {
   const showHistoryGrid =
     !loading && status !== "SUCCESS" && history.length > 0;
 
-  const handleScrapeSubmit = async (url: string, _options: ScrapeOptions) => {
+  const handleScrapeSubmit = async (url: string) => {
     setStatus(ScrapeStatus.SCRAPING);
     setLoading(true);
     setError(null);
     setScrapeResult(null);
+    setHtml("");
     setMarkdown("");
 
     try {
       setLogMessage("Fetching raw HTML...");
 
-      const result = await scrapeUrl(url, _options);
+      const result = await scrapeUrl(url, scrapeOptions);
 
       const scrapeResult: ScrapeResult = {
         url: result.url,
@@ -50,6 +53,7 @@ export const ScrapePage: React.FC = () => {
       };
 
       setScrapeResult(scrapeResult);
+      setHtml(result.html);
       setStatus(ScrapeStatus.SUCCESS);
       setLogMessage(`Successfully scraped ${result.chars} characters`);
 

@@ -57,7 +57,11 @@ router.post(
       }
 
       // Clean the HTML
-      const { title, cleanedHtml } = cleanHtml(rawHtml, validatedUrl);
+      const { title, cleanedHtml } = await cleanHtml(
+        rawHtml,
+        validatedUrl,
+        options,
+      );
       const chars = cleanedHtml.length;
 
       logger.info(

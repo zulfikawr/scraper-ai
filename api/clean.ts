@@ -56,7 +56,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Clean the HTML
-    const { title, cleanedHtml } = cleanHtml(rawHtml, validatedUrl);
+    const { title, cleanedHtml } = await cleanHtml(rawHtml, validatedUrl);
     const chars = cleanedHtml.length;
 
     logger.info(

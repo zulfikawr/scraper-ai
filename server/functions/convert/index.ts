@@ -1,6 +1,7 @@
 import { aiConvert } from "./aiConvert";
 import { fallbackConvert } from "./fallbackConvert";
 import { cloudflareConvert } from "./cloudflareConvert";
+import { convertWithWorkerAI } from "./workerAIConvert";
 import { ScrapeOptions } from "@/types";
 import logger from "../../utils/logger";
 
@@ -12,6 +13,7 @@ import logger from "../../utils/logger";
  * 3) Cloudflare Browser Rendering /markdown endpoint
  * 4) Local Turndown fallback
  */
+
 export async function convertToMarkdown(
   html: string,
   options: ScrapeOptions,
@@ -19,7 +21,21 @@ export async function convertToMarkdown(
   const primaryProvider = options.aiProvider || "gemini";
   const fallbackProvider = primaryProvider === "gemini" ? "deepseek" : "gemini";
 
-  // 1) Try primary AI provider first
+  // 0) Try Worker AI (Primary)
+  try {
+    const result = await convertWithWorkerAI(html, options);
+    if (result && result.trim().length > 0) {
+      return result;
+    }
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `Worker AI failed with error, falling back to ${primaryProvider.toUpperCase()}:`,
+      errorMessage,
+    );
+  }
+
+  // 1) Try primary AI provider
   try {
     const result = await aiConvert(html, options, {
       provider: primaryProvider,

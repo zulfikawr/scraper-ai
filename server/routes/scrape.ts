@@ -43,7 +43,7 @@ router.post(
       const chars = result.html.length;
 
       // Extract title from HTML (using cleanHtml just for metadata extraction here)
-      const { title } = cleanHtml(result.html, validatedUrl);
+      const { title } = await cleanHtml(result.html, validatedUrl);
 
       logger.info(
         "Scrape succeeded",

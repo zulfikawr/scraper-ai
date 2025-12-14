@@ -61,7 +61,7 @@ export async function* scrapeUrlGenerator(
 
     // 2. CLEANING
     yield { type: "status", status: ScrapeStatus.CLEANING };
-    const { title, cleanedHtml } = cleanHtml(rawHtml, url);
+    const { title, cleanedHtml } = await cleanHtml(rawHtml, url);
     logger.info(
       "Cleaned HTML",
       `title=${title}`,

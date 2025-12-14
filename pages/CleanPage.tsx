@@ -10,7 +10,7 @@ import { SpiderWeb } from "@/components/SpiderWeb";
 import { cleanHtml } from "@/services/api";
 import { ScrapeOptions, ScrapeStatus, ScrapeResult } from "@/types";
 import { motion } from "motion/react";
-import { Upload, X } from "lucide-react";
+import { Play, Trash2, Upload, X } from "lucide-react";
 
 export const CleanPage: React.FC = () => {
   const {
@@ -18,11 +18,13 @@ export const CleanPage: React.FC = () => {
     error,
     status,
     history,
+    scrapeOptions,
     scrapeResult,
     setStatus,
     setLoading,
     setError,
     setScrapeResult,
+    setHtml,
     setMarkdown,
     setLogMessage,
     setHistory,
@@ -35,7 +37,7 @@ export const CleanPage: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleCleanSubmit = async (url: string, _options: ScrapeOptions) => {
+  const handleCleanSubmit = async (url: string) => {
     if (!htmlInput && !url) {
       setError("Please provide HTML or a URL");
       return;
@@ -45,6 +47,7 @@ export const CleanPage: React.FC = () => {
     setLoading(true);
     setError(null);
     setScrapeResult(null);
+    setHtml("");
     setMarkdown("");
 
     try {
@@ -53,7 +56,7 @@ export const CleanPage: React.FC = () => {
       const result = await cleanHtml({
         html: htmlInput || undefined,
         url: url || undefined,
-        options: _options,
+        options: scrapeOptions,
       });
 
       const cleanResult: ScrapeResult = {
@@ -65,6 +68,7 @@ export const CleanPage: React.FC = () => {
       };
 
       setScrapeResult(cleanResult);
+      setHtml(result.cleanedHtml);
       setStatus(ScrapeStatus.SUCCESS);
       setLogMessage(`Successfully cleaned ${result.chars} characters`);
       setHtmlInput("");
@@ -134,6 +138,13 @@ export const CleanPage: React.FC = () => {
     }
   };
 
+  const handleRawHtmlClean = () => {
+    if (htmlInput) {
+      // Just call the main handler with empty URL
+      handleCleanSubmit("");
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
       {/* Spider Web */}
@@ -157,7 +168,7 @@ export const CleanPage: React.FC = () => {
           />
 
           {/* HTML Drop Zone */}
-          {!htmlInput && (
+          {!htmlInput && status !== ScrapeStatus.CLEANING && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -202,7 +213,7 @@ export const CleanPage: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               className="mt-6 w-full max-w-2xl mx-auto"
             >
-              <div className="bg-white border border-zinc-200 rounded-xl p-4 relative">
+              <div className="bg-white border border-zinc-200 rounded-xl p-4 relative mb-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-zinc-900">
                     HTML Content
@@ -218,6 +229,24 @@ export const CleanPage: React.FC = () => {
                   {htmlInput.slice(0, 500)}
                   {htmlInput.length > 500 && "..."}
                 </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setHtmlInput("")}
+                  className="flex items-center gap-2 px-4 py-2 text-zinc-500 hover:text-zinc-700 font-medium text-sm transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Clear
+                </button>
+
+                <button
+                  onClick={handleRawHtmlClean}
+                  className="flex items-center gap-2 px-6 py-2 bg-zinc-900 hover:bg-black text-white rounded-lg font-medium text-sm shadow-lg shadow-zinc-200 transition-all active:scale-95"
+                >
+                  <Play className="h-4 w-4" />
+                  Clean HTML
+                </button>
               </div>
             </motion.div>
           )}

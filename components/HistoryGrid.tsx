@@ -35,6 +35,7 @@ const HistoryGrid: React.FC = () => {
     history,
     setHistory,
     setScrapeResult,
+    setHtml,
     setMarkdown,
     setStatus,
     setIsMaximized,
@@ -50,6 +51,7 @@ const HistoryGrid: React.FC = () => {
       mode: item.operation,
     };
     setScrapeResult(restoredResult);
+    setHtml(item.html || "");
     setMarkdown(item.markdown);
     setStatus(ScrapeStatus.SUCCESS);
     setIsMaximized(true);

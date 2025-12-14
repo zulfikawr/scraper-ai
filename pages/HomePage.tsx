@@ -8,7 +8,7 @@ import LoadingState from "@/components/LoadingState";
 import ErrorState from "@/components/ErrorState";
 import { SpiderWeb } from "@/components/SpiderWeb";
 import { convertToMarkdown } from "@/services/api";
-import { ScrapeOptions, ScrapeStatus } from "@/types";
+import { ScrapeStatus } from "@/types";
 
 export const HomePage: React.FC = () => {
   const {
@@ -16,6 +16,7 @@ export const HomePage: React.FC = () => {
     error,
     status,
     history,
+    scrapeOptions,
     scrapeResult,
     setStatus,
     setLoading,
@@ -29,7 +30,7 @@ export const HomePage: React.FC = () => {
   const showHistoryGrid =
     !loading && status !== "SUCCESS" && history.length > 0;
 
-  const handleConvertSubmit = async (url: string, options: ScrapeOptions) => {
+  const handleConvertSubmit = async (url: string) => {
     setStatus(ScrapeStatus.SCRAPING);
     setLoading(true);
     setError(null);
@@ -37,14 +38,13 @@ export const HomePage: React.FC = () => {
     setMarkdown("");
 
     try {
-      const result = await convertToMarkdown({ url }, options, {
+      const result = await convertToMarkdown({ url }, scrapeOptions, {
         onStatus: (newStatus) => {
           setStatus(newStatus);
         },
         onLog: (level, message, autoEnableBrowser) => {
           if (autoEnableBrowser) {
-            // Note: this is client-side, you can't update options here
-            // Consider passing this info through the UI instead
+            // Logic to auto-enable browser in context could go here if needed
           }
           if (level === "error") {
             setError(message);

@@ -29,11 +29,23 @@ const getDeepSeekClient = () => {
   });
 };
 
+const systemInstruction =
+  "You are a precise coding assistant specialized in data serialization. Your task is to convert HTML strings into Markdown format with high fidelity, strictly following the provided rules.";
+
 const buildPrompt = (htmlContent: string, options: ScrapeOptions): string => {
-  const truncatedContent =
-    htmlContent.length > 150000
-      ? htmlContent.substring(0, 150000) + "...[content truncated]"
-      : htmlContent;
+  let contentToProcess = htmlContent;
+  const MAX_LENGTH = 150000;
+
+  if (contentToProcess.length > MAX_LENGTH) {
+    const lastP = contentToProcess.lastIndexOf("</p>", MAX_LENGTH);
+    if (lastP > 0) {
+      contentToProcess =
+        contentToProcess.substring(0, lastP + 4) +
+        "\n\n...[content truncated due to length]";
+    } else {
+      contentToProcess = contentToProcess.substring(0, MAX_LENGTH) + "...";
+    }
+  }
 
   const imageRule = options.includeImages
     ? "Include images using ![alt text](url) syntax. Extract meaningful alt text from the HTML or describe the image context. If inside <figure>, use the <figcaption> as alt text or caption."
@@ -43,62 +55,31 @@ const buildPrompt = (htmlContent: string, options: ScrapeOptions): string => {
     ? "Preserve meaningful hyperlinks using [text](url) syntax. Keep links that add value (references, sources, related content)."
     : "Remove all hyperlinks but preserve the link text inline.";
 
-  return `Extract and convert the main content from this HTML into clean, well-structured Markdown. Don't rephrase, summarize, or modify the original content.
-  
-    == PRIMARY OBJECTIVES ==
-    1. Extract ONLY the main article/content body
-    2. Remove all navigation, UI elements, and promotional content
-    3. Preserve the content's logical structure and hierarchy
-    4. Produce professional, readable Markdown
-    
-    == REMOVAL RULES (Apply Strictly) ==
-    Remove these elements completely:
-    - Navigation menus, headers, footers, sidebars
-    - Social sharing buttons ("Share on...", "Follow us", "Tweet this")
-    - Call-to-action buttons ("Subscribe", "Sign up", "Download")
-    - Advertisement placeholders and promotional boxes
-    - "Related Articles", "You May Also Like", "Trending Now" sections
-    - Article metadata (publish date, author byline, read time, view counts)
-    - Comment sections and user interaction prompts
-    - Cookie notices, newsletter popups, modal overlays
-    - Breadcrumb trails and pagination ("Page 1 of 3", "Next article")
-    - Image carousel counters ("1/10", "Slide 2 of 5")
-    - Copyright footers and legal disclaimers (unless part of main content)
-    
-    == MARKDOWN FORMATTING ==
-    Structure:
-    - Use # for the main title (H1) - should appear only once
-    - Use ## for major sections (H2)
-    - Use ### for subsections (H3)
-    
-    Content:
-    - ${imageRule}
-    - ${linkRule}
-    - Preserve code blocks with proper language tags: \`\`\`language
-    - Use > for blockquotes, replacing the quotes ""
-    - Format tables using proper Markdown table syntax
-    - Use - or * for unordered lists, 1. 2. 3. for ordered lists
-    - Use **bold** for emphasis, *italic* for subtle emphasis
-    - Preserve line breaks between paragraphs
-    
-    == QUALITY CHECKS ==
-    Before outputting, ensure:
-    ✓ The title is clear and appears once at the top
-    ✓ Headers follow a logical hierarchy (no jumping from # to ###)
-    ✓ Lists are properly formatted and not broken
-    ✓ No UI fragments remain ("Click here", "Read more", etc.)
-    ✓ The text flows naturally as a standalone document
-    ✓ No code block markers or artifact syntax in output
-    
-    == HTML INPUT ==
-    ${truncatedContent}
-    
-    == OUTPUT INSTRUCTIONS ==
-    Return ONLY the Markdown content. Start immediately with the title. No preamble, no explanations, no wrapping in code blocks.`;
-};
+  return `You are a highly precise HTML-to-Markdown converter.
+You are receiving PRE-CLEANED HTML content. Your job is not to summarize or extract, but to faithfully transpile the existing structure into valid Markdown.
 
-const systemInstruction =
-  "You are an expert HTML-to-Markdown converter specialized in content extraction. Your sole purpose is to identify the main article content within HTML and convert it to clean, professional Markdown. You excel at distinguishing between actual content and web UI noise (navigation, ads, social widgets). You never add explanations or wrap output in code blocks - you return pure Markdown only.";
+== TRANSFORMATION RULES ==
+1.  **Headings:** map <h1>-<h6> to # through ######.
+2.  **Text:** Preserve all bold, italic, and inline styles using Markdown syntax (**bold**, *italic*).
+3.  **Lists:** strictly preserve nesting levels. Use "-" for unordered and "1." for ordered lists. Ensure indented sub-lists use 4 spaces.
+4.  **Code:** Convert <pre><code> blocks to \`\`\`language blocks. Detect the language if possible.
+5.  **Blockquotes:** Use > for <blockquote>.
+6.  **Tables:** Convert HTML tables to Markdown tables. If a table is too complex for Markdown (nested), preserve the content as a list.
+7.  **Escaping:** If the original text contains Markdown characters (like *, _, [, ]), escape them with a backslash if they are part of the literal text.
+
+== DYNAMIC RULES ==
+- ${imageRule}
+- ${linkRule}
+
+== STRICT CONSTRAINTS ==
+- DO NOT add a preamble (e.g., "Here is the markdown").
+- DO NOT wrap the output in a code block (\`\`\`).
+- DO NOT output the Title twice if it's already the first line of the body.
+- Return ONLY the raw Markdown string.
+
+== INPUT HTML ==
+${contentToProcess}`;
+};
 
 async function convertWithGemini(
   htmlContent: string,
@@ -113,7 +94,7 @@ async function convertWithGemini(
     contents: prompt,
     config: {
       systemInstruction,
-      temperature: 0.1,
+      temperature: 0.1, // Low temp for precision
     },
   });
 
